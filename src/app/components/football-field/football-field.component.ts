@@ -1,0 +1,320 @@
+import { Component, Output, EventEmitter, input, signal, ElementRef, ViewChild } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Player, FieldCoordinates } from '../../models/player.model';
+import { EventRecordingService } from '../../services/event-recording.service';
+
+/**
+ * Football field component with SVG rendering and click handling
+ */
+@Component({
+  selector: 'app-football-field',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
+    <div class="field-container" 
+         #fieldElement 
+         (click)="onFieldClick($event)"
+         (mousemove)="onFieldMouseMove($event)"
+         (mouseup)="onFieldMouseUp()"
+         (mouseleave)="onFieldMouseLeave()">
+      <svg 
+        class="football-field"
+        viewBox="0 0 1050 680"
+        [class.interactive]="interactive()">
+        
+        <!-- Field background -->
+        <rect class="field-bg" x="0" y="0" width="1050" height="680" />
+        
+        <!-- Outer boundary -->
+        <rect class="field-line" x="10" y="10" width="1030" height="660" 
+              fill="none" stroke="white" stroke-width="2"/>
+        
+        <!-- Halfway line -->
+        <line class="field-line" x1="525" y1="10" x2="525" y2="670" 
+              stroke="white" stroke-width="2"/>
+        
+        <!-- Center circle -->
+        <circle class="field-line" cx="525" cy="340" r="91.5" 
+                fill="none" stroke="white" stroke-width="2"/>
+        <circle class="field-line" cx="525" cy="340" r="2" 
+                fill="white"/>
+        
+        <!-- Left penalty area -->
+        <rect class="field-line" x="10" y="188.5" width="165" height="303" 
+              fill="none" stroke="white" stroke-width="2"/>
+        
+        <!-- Left goal area -->
+        <rect class="field-line" x="10" y="262.5" width="55" height="155" 
+              fill="none" stroke="white" stroke-width="2"/>
+        
+        <!-- Left penalty spot -->
+        <circle class="field-line" cx="121" cy="340" r="2" fill="white"/>
+        
+        <!-- Left penalty arc -->
+        <path class="field-line" d="M 175 249 A 91.5 91.5 0 0 1 175 431" 
+              fill="none" stroke="white" stroke-width="2"/>
+        
+        <!-- Right penalty area -->
+        <rect class="field-line" x="875" y="188.5" width="165" height="303" 
+              fill="none" stroke="white" stroke-width="2"/>
+        
+        <!-- Right goal area -->
+        <rect class="field-line" x="985" y="262.5" width="55" height="155" 
+              fill="none" stroke="white" stroke-width="2"/>
+        
+        <!-- Right penalty spot -->
+        <circle class="field-line" cx="929" cy="340" r="2" fill="white"/>
+        
+        <!-- Right penalty arc -->
+        <path class="field-line" d="M 875 249 A 91.5 91.5 0 0 0 875 431" 
+              fill="none" stroke="white" stroke-width="2"/>
+        
+        <!-- Corner arcs -->
+        <path class="field-line" d="M 10 20 A 10 10 0 0 1 20 10" 
+              fill="none" stroke="white" stroke-width="2"/>
+        <path class="field-line" d="M 1030 10 A 10 10 0 0 1 1040 20" 
+              fill="none" stroke="white" stroke-width="2"/>
+        <path class="field-line" d="M 1040 660 A 10 10 0 0 1 1030 670" 
+              fill="none" stroke="white" stroke-width="2"/>
+        <path class="field-line" d="M 20 670 A 10 10 0 0 1 10 660" 
+              fill="none" stroke="white" stroke-width="2"/>
+        
+        <!-- Players -->
+        @for (player of players(); track player.id) {
+          <g class="player" 
+             [attr.transform]="getPlayerTransform(player)"
+             (click)="onPlayerClick($event, player)"
+             (mousedown)="onPlayerMouseDown($event, player)"
+             [class.dragging]="draggedPlayerId() === player.id">
+            
+            <!-- Player circle -->
+            <circle 
+              [attr.r]="playerRadius"
+              [attr.fill]="player.team === 'home' ? 'var(--home-team, #0d47a1)' : 'var(--away-team, #b71c1c)'"
+              [attr.stroke]="player.team === 'home' ? '#0d47a1' : '#b71c1c'"
+              stroke-width="2"
+              class="player-circle"
+              [class.selected]="selectedPlayer()?.id === player.id"/>
+            
+            <!-- Jersey number -->
+            <text 
+              text-anchor="middle" 
+              dy="0.35em"
+              fill="white"
+              font-size="14"
+              font-weight="bold"
+              class="player-number">
+              {{ player.jerseyNumber }}
+            </text>
+          </g>
+        }
+        
+        <!-- Click indicator -->
+        @if (lastClickPosition()) {
+          <circle 
+            [attr.cx]="lastClickPosition()!.x * 10.3"
+            [attr.cy]="lastClickPosition()!.y * 6.7"
+            r="8"
+            fill="yellow"
+            opacity="0.7"
+            class="click-indicator">
+            <animate attributeName="r" from="8" to="20" dur="0.5s" repeatCount="1"/>
+            <animate attributeName="opacity" from="0.7" to="0" dur="0.5s" repeatCount="1"/>
+          </circle>
+        }
+      </svg>
+      
+      @if (showCoordinates() && lastClickPosition()) {
+        <div class="coordinates-display">
+          Click position: ({{ lastClickPosition()!.x.toFixed(1) }}, {{ lastClickPosition()!.y.toFixed(1) }})
+        </div>
+      }
+    </div>
+  `,
+  styles: [`
+    .field-container {
+      position: relative;
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+    }
+
+    .football-field {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .football-field.interactive {
+      cursor: crosshair;
+    }
+
+    .field-bg {
+      fill: var(--field-green, #4caf50);
+    }
+
+    .field-line {
+      stroke: white;
+      stroke-width: 2;
+    }
+
+    .player {
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .player:hover .player-circle {
+      filter: brightness(1.2);
+      stroke-width: 3;
+    }
+
+    .player.dragging {
+      opacity: 0.7;
+      transition: none; /* Disable transition during drag for smoothness */
+    }
+
+    .player-circle.selected {
+      stroke-width: 4;
+      filter: brightness(1.3) drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+    }
+
+    .player-number {
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .click-indicator {
+      pointer-events: none;
+    }
+
+    .coordinates-display {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: monospace;
+    }
+  `]
+})
+export class FootballFieldComponent {
+  @ViewChild('fieldElement') fieldElement!: ElementRef<HTMLDivElement>;
+
+  // Inputs
+  players = input<Player[]>([]);
+  interactive = input<boolean>(true);
+  showCoordinates = input<boolean>(true);
+  selectedPlayer = input<Player | null>(null);
+
+  // Outputs
+  @Output() fieldClick = new EventEmitter<FieldCoordinates>();
+  @Output() playerClick = new EventEmitter<Player>();
+  @Output() playerMove = new EventEmitter<{ player: Player; position: FieldCoordinates }>();
+
+  // State
+  lastClickPosition = signal<FieldCoordinates | null>(null);
+
+  // Drag state
+  isDragging = signal<boolean>(false);
+  draggedPlayerId = signal<string | null>(null);
+
+  // Constants
+  readonly playerRadius = 15;
+  readonly fieldWidth = 1030; // SVG units
+  readonly fieldHeight = 660; // SVG units
+
+  constructor(private eventService: EventRecordingService) { }
+
+  /**
+   * Handle field click to emit coordinates
+   */
+  onFieldClick(event: MouseEvent): void {
+    if (!this.interactive()) return;
+
+    // Ignore click if we were dragging
+    if (this.isDragging()) {
+      this.isDragging.set(false);
+      this.draggedPlayerId.set(null);
+      return;
+    }
+
+    const rect = this.fieldElement.nativeElement.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+
+    // Clamp values to 0-100
+    const clampedX = Math.max(0, Math.min(100, x));
+    const clampedY = Math.max(0, Math.min(100, y));
+
+    const coordinates: FieldCoordinates = { x: clampedX, y: clampedY };
+    this.lastClickPosition.set(coordinates);
+    this.fieldClick.emit(coordinates);
+
+    // Clear indicator after animation
+    setTimeout(() => this.lastClickPosition.set(null), 500);
+  }
+
+  onPlayerMouseDown(event: MouseEvent, player: Player): void {
+    if (!this.interactive()) return;
+
+    event.stopPropagation();
+    event.preventDefault(); // Prevent text selection
+    this.isDragging.set(true);
+    this.draggedPlayerId.set(player.id);
+  }
+
+  onFieldMouseMove(event: MouseEvent): void {
+    if (this.isDragging() && this.draggedPlayerId()) {
+      event.preventDefault();
+      const rect = this.fieldElement.nativeElement.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * 100;
+      const y = ((event.clientY - rect.top) / rect.height) * 100;
+
+      // Clamp to 0-100
+      const clampedX = Math.max(0, Math.min(100, x));
+      const clampedY = Math.max(0, Math.min(100, y));
+
+      this.eventService.updatePlayerPosition(this.draggedPlayerId()!, { x: clampedX, y: clampedY });
+    }
+  }
+
+  onFieldMouseUp(): void {
+    if (this.isDragging()) {
+      this.isDragging.set(false);
+      this.draggedPlayerId.set(null);
+    }
+  }
+
+  onFieldMouseLeave(): void {
+    if (this.isDragging()) {
+      this.isDragging.set(false);
+      this.draggedPlayerId.set(null);
+    }
+  }
+
+  /**
+   * Handle player click
+   */
+  onPlayerClick(event: MouseEvent, player: Player): void {
+    event.stopPropagation();
+    if (!this.isDragging()) {
+      this.playerClick.emit(player);
+    }
+  }
+
+  /**
+   * Get SVG transform for player position
+   */
+  getPlayerTransform(player: Player): string {
+    // Convert percentage to SVG coordinates
+    // Add 10 to account for field border
+    const x = 10 + (player.fieldPosition.x / 100) * this.fieldWidth;
+    const y = 10 + (player.fieldPosition.y / 100) * this.fieldHeight;
+    return `translate(${x}, ${y})`;
+  }
+}
