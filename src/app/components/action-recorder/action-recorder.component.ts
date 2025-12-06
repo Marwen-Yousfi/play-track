@@ -5,6 +5,7 @@ import { EventRecordingService } from '../../services/event-recording.service';
 import { VideoSyncService } from '../../services/video-sync.service';
 import { LiveEvent, EventType, EventOutcome, MatchPeriod } from '../../models/event.model';
 import { Player, FieldCoordinates } from '../../models/player.model';
+import { calculateDistance, calculateDirection } from '../../utils/field-calculations';
 
 /**
  * Multi-step action recorder component
@@ -18,7 +19,7 @@ import { Player, FieldCoordinates } from '../../models/player.model';
       <div class="recorder-header">
         <h3>Record Action</h3>
         <div class="step-indicator">
-          Step {{ currentStep() }} of 4
+          Step {{ currentStep() }} of {{ totalSteps() }}
         </div>
       </div>
 
@@ -76,25 +77,137 @@ import { Player, FieldCoordinates } from '../../models/player.model';
         </div>
       }
 
-      <!-- Step 3: Select Position -->
+      <!-- Step 3: Origin Position (for dual-position) OR Single Position (for single-position) -->
       @if (currentStep() === 3) {
         <div class="step-content">
-          <h4>3. Click on Field to Mark Position</h4>
+          @if (requiresDualPosition()) {
+            <h4>3. Click Origin Position</h4>
+            <p class="instruction-text">
+              Click on the field where the {{ selectedAction() }} started
+            </p>
+            @if (originCoordinates()) {
+              <div class="coordinates-info">
+                Origin position: ({{ originCoordinates()!.x.toFixed(1) }}, {{ originCoordinates()!.y.toFixed(1) }})
+              </div>
+            }
+          } @else {
+            <h4>3. Click on Field to Mark Position</h4>
+            <p class="instruction-text">
+              Click on the football field below to mark where the action occurred
+            </p>
+            @if (selectedCoordinates()) {
+              <div class="coordinates-info">
+                Position selected: ({{ selectedCoordinates()!.x.toFixed(1) }}, {{ selectedCoordinates()!.y.toFixed(1) }})
+              </div>
+            }
+          }
+        </div>
+      }
+
+      <!-- Step 4: Receiver Selection (for passes only) OR Outcome (for single-position) -->
+      @if (currentStep() === 4) {
+        <div class="step-content">
+          @if (requiresDualPosition() && selectedAction() === 'pass') {
+            <h4>4. Select Receiver (Optional)</h4>
+            <p class="instruction-text">
+              Select the player who received the pass (optional - skip if not applicable)
+            </p>
+            
+            <div class="team-selection">
+              <button 
+                class="btn"
+                [class.btn-primary]="selectedTeam() === 'home'"
+                [class.btn-secondary]="selectedTeam() !== 'home'"
+                (click)="selectedTeam.set('home')">
+                Home Team
+              </button>
+              <button 
+                class="btn"
+                [class.btn-primary]="selectedTeam() === 'away'"
+                [class.btn-secondary]="selectedTeam() !== 'away'"
+                (click)="selectedTeam.set('away')">
+                Away Team
+              </button>
+            </div>
+            
+            <div class="player-list">
+              @for (player of filteredPlayers(); track player.id) {
+                <button 
+                  class="player-item"
+                  [class.selected]="selectedReceiver() === player.id"
+                  (click)="selectReceiver(player.id)">
+                  <span class="player-number">{{ player.jerseyNumber }}</span>
+                  <span class="player-name">{{ player.name }}</span>
+                  <span class="player-position">{{ player.position }}</span>
+                </button>
+              }
+            </div>
+            
+            <button class="btn btn-outline" (click)="skipReceiver()">Skip - No Receiver</button>
+          } @else if (requiresDualPosition()) {
+            <h4>4. Click Destination Position</h4>
+            <p class="instruction-text">
+              Click on the field where the {{ selectedAction() }} ended
+            </p>
+            @if (destinationCoordinates()) {
+              <div class="coordinates-info">
+                Destination: ({{ destinationCoordinates()!.x.toFixed(1) }}, {{ destinationCoordinates()!.y.toFixed(1) }})
+              </div>
+            }
+          } @else {
+            <h4>4. Select Outcome & Details</h4>
+            
+            <div class="form-group">
+              <label class="form-label">Outcome</label>
+              <select class="form-control" [(ngModel)]="selectedOutcome">
+                <option value="successful">Successful</option>
+                <option value="unsuccessful">Unsuccessful</option>
+                <option value="neutral">Neutral</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Match Period</label>
+              <select class="form-control" [(ngModel)]="selectedPeriod">
+                <option value="first_half">First Half</option>
+                <option value="second_half">Second Half</option>
+                <option value="extra_time_first">Extra Time (1st)</option>
+                <option value="extra_time_second">Extra Time (2nd)</option>
+              </select>
+            </div>
+
+            <!-- Action-specific fields -->
+            @if (selectedAction() === 'shot' || selectedAction() === 'goal') {
+              <div class="form-group">
+                <label class="form-label">
+                  <input type="checkbox" [(ngModel)]="shotOnTarget">
+                  Shot on Target
+                </label>
+              </div>
+            }
+          }
+        </div>
+      }
+
+      <!-- Step 5: Destination Position (for dual-position with receiver) -->
+      @if (currentStep() === 5 && requiresDualPosition()) {
+        <div class="step-content">
+          <h4>5. Click Destination Position</h4>
           <p class="instruction-text">
-            Click on the football field below to mark where the action occurred
+            Click on the field where the {{ selectedAction() }} ended
           </p>
-          @if (selectedCoordinates()) {
+          @if (destinationCoordinates()) {
             <div class="coordinates-info">
-              Position selected: ({{ selectedCoordinates()!.x.toFixed(1) }}, {{ selectedCoordinates()!.y.toFixed(1) }})
+              Destination: ({{ destinationCoordinates()!.x.toFixed(1) }}, {{ destinationCoordinates()!.y.toFixed(1) }})
             </div>
           }
         </div>
       }
 
-      <!-- Step 4: Select Outcome & Details -->
-      @if (currentStep() === 4) {
+      <!-- Step 6: Outcome & Details (for dual-position) -->
+      @if ((currentStep() === 6 && requiresDualPosition()) || (currentStep() === 4 && !requiresDualPosition())) {
         <div class="step-content">
-          <h4>4. Select Outcome & Details</h4>
+          <h4>{{ requiresDualPosition() ? '6' : '4' }}. Select Outcome & Details</h4>
           
           <div class="form-group">
             <label class="form-label">Outcome</label>
@@ -124,18 +237,6 @@ import { Player, FieldCoordinates } from '../../models/player.model';
               </label>
             </div>
           }
-
-          @if (selectedAction() === 'pass') {
-            <div class="form-group">
-              <label class="form-label">Pass Type</label>
-              <select class="form-control" [(ngModel)]="passType">
-                <option value="short">Short</option>
-                <option value="long">Long</option>
-                <option value="through_ball">Through Ball</option>
-                <option value="cross">Cross</option>
-              </select>
-            </div>
-          }
         </div>
       }
 
@@ -149,7 +250,7 @@ import { Player, FieldCoordinates } from '../../models/player.model';
         
         <div class="spacer"></div>
         
-        @if (currentStep() < 4) {
+        @if (currentStep() < totalSteps()) {
           <button 
             class="btn btn-primary" 
             [disabled]="!canProceed()"
@@ -351,6 +452,12 @@ export class ActionRecorderComponent {
   selectedTeam = signal<'home' | 'away'>('home');
   selectedPlayer = signal<string | null>(null);
   selectedCoordinates = signal<FieldCoordinates | null>(null);
+
+  // Dual-position fields
+  originCoordinates = signal<FieldCoordinates | null>(null);
+  destinationCoordinates = signal<FieldCoordinates | null>(null);
+  selectedReceiver = signal<string | null>(null);
+
   selectedOutcome: EventOutcome = 'successful';
   selectedPeriod: MatchPeriod = 'first_half';
 
@@ -373,6 +480,17 @@ export class ActionRecorderComponent {
     { type: 'throw_in' as EventType, label: 'Throw In', icon: '🤾' }
   ];
 
+  // Computed: Check if selected action requires dual-position tracking
+  requiresDualPosition = computed(() => {
+    const action = this.selectedAction();
+    if (!action) return false;
+    const dualPositionActions: EventType[] = ['pass', 'shot', 'goal', 'cross', 'corner', 'throw_in', 'free_kick', 'penalty'];
+    return dualPositionActions.includes(action);
+  });
+
+  // Computed: Total number of steps based on action type
+  totalSteps = computed(() => this.requiresDualPosition() ? 6 : 4);
+
   filteredPlayers = computed(() => {
     const match = this.eventService.currentMatch();
     if (!match) return [];
@@ -394,22 +512,71 @@ export class ActionRecorderComponent {
     this.selectedPlayer.set(playerId);
   }
 
+  selectReceiver(playerId: string): void {
+    this.selectedReceiver.set(playerId);
+  }
+
+  skipReceiver(): void {
+    this.selectedReceiver.set(null);
+    this.nextStep(); // Auto-advance to next step
+  }
+
   setCoordinates(coords: FieldCoordinates): void {
-    this.selectedCoordinates.set(coords);
+    const step = this.currentStep();
+
+    if (this.requiresDualPosition()) {
+      // For dual-position events
+      if (step === 3) {
+        // Step 3: Set origin
+        this.originCoordinates.set(coords);
+        this.selectedCoordinates.set(coords); // Keep for backward compatibility
+      } else if (step === 4 && this.selectedAction() !== 'pass') {
+        // Step 4: Set destination (for non-pass dual-position events)
+        this.destinationCoordinates.set(coords);
+      } else if (step === 5) {
+        // Step 5: Set destination (for passes with receiver)
+        this.destinationCoordinates.set(coords);
+      }
+    } else {
+      // For single-position events
+      this.selectedCoordinates.set(coords);
+    }
   }
 
   canProceed(): boolean {
     switch (this.currentStep()) {
       case 1: return this.selectedAction() !== null;
       case 2: return this.selectedPlayer() !== null;
-      case 3: return this.selectedCoordinates() !== null;
-      case 4: return true;
+      case 3:
+        if (this.requiresDualPosition()) {
+          return this.originCoordinates() !== null;
+        } else {
+          return this.selectedCoordinates() !== null;
+        }
+      case 4:
+        if (this.requiresDualPosition()) {
+          if (this.selectedAction() === 'pass') {
+            // Receiver is optional, always can proceed
+            return true;
+          } else {
+            return this.destinationCoordinates() !== null;
+          }
+        } else {
+          // Single-position events can always proceed from step 4 (outcome selection)
+          return true;
+        }
+      case 5:
+        // Step 5 is destination for passes with receiver
+        return this.destinationCoordinates() !== null;
+      case 6:
+        // Final step, always can proceed
+        return true;
       default: return false;
     }
   }
 
   nextStep(): void {
-    if (this.canProceed() && this.currentStep() < 4) {
+    if (this.canProceed() && this.currentStep() < this.totalSteps()) {
       this.currentStep.update(step => step + 1);
     }
   }
@@ -429,13 +596,14 @@ export class ActionRecorderComponent {
     const timestamp = this.videoSync.getCurrentTimestamp();
     const minute = this.videoSync.getMatchMinute(timestamp);
 
+    // Base event data
     const eventData: Omit<LiveEvent, 'id' | 'createdAt' | 'updatedAt'> = {
       matchId: match.id,
       timestamp,
       eventType: this.selectedAction()!,
       team: this.selectedTeam(),
       playerId: this.selectedPlayer()!,
-      coordinates: this.selectedCoordinates()!,
+      coordinates: this.selectedCoordinates() || this.originCoordinates()!,
       outcome: this.selectedOutcome,
       period: this.selectedPeriod,
       minute,
@@ -444,6 +612,17 @@ export class ActionRecorderComponent {
         passType: this.passType
       }
     };
+
+    // Add dual-position fields if applicable
+    if (this.requiresDualPosition() && this.originCoordinates() && this.destinationCoordinates()) {
+      eventData.originCoordinates = this.originCoordinates()!;
+      eventData.destinationCoordinates = this.destinationCoordinates()!;
+      eventData.receiverId = this.selectedReceiver() || undefined;
+
+      // Calculate distance and direction
+      eventData.distance = calculateDistance(this.originCoordinates()!, this.destinationCoordinates()!);
+      eventData.direction = calculateDirection(this.originCoordinates()!, this.destinationCoordinates()!);
+    }
 
     this.eventService.addEvent(eventData);
     this.reset();
@@ -458,6 +637,9 @@ export class ActionRecorderComponent {
     this.selectedAction.set(null);
     this.selectedPlayer.set(null);
     this.selectedCoordinates.set(null);
+    this.originCoordinates.set(null);
+    this.destinationCoordinates.set(null);
+    this.selectedReceiver.set(null);
     this.selectedOutcome = 'successful';
     this.shotOnTarget = false;
   }

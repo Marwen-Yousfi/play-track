@@ -4,6 +4,16 @@ import { Player, FieldCoordinates } from '../../models/player.model';
 import { EventRecordingService } from '../../services/event-recording.service';
 
 /**
+ * Arrow interface for displaying event trajectories
+ */
+export interface EventArrow {
+  from: FieldCoordinates;
+  to: FieldCoordinates;
+  color: string;
+  label?: string;
+}
+
+/**
  * Football field component with SVG rendering and click handling
  */
 @Component({
@@ -79,13 +89,56 @@ import { EventRecordingService } from '../../services/event-recording.service';
         <path class="field-line" d="M 20 670 A 10 10 0 0 1 10 660" 
               fill="none" stroke="white" stroke-width="2"/>
         
+        <!-- Arrow marker definitions -->
+        <defs>
+          <marker id="arrowhead-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+            <polygon points="0 0, 10 3, 0 6" fill="#4caf50"/>
+          </marker>
+          <marker id="arrowhead-red" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+            <polygon points="0 0, 10 3, 0 6" fill="#f44336"/>
+          </marker>
+          <marker id="arrowhead-yellow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+            <polygon points="0 0, 10 3, 0 6" fill="#ffc107"/>
+          </marker>
+        </defs>
+
+        <!-- Event arrows -->
+        @for (arrow of arrows(); track $index) {
+          <line 
+            [attr.x1]="arrow.from.x * 10.3"
+            [attr.y1]="arrow.from.y * 6.7"
+            [attr.x2]="arrow.to.x * 10.3"
+            [attr.y2]="arrow.to.y * 6.7"
+            [attr.stroke]="arrow.color"
+            stroke-width="3"
+            [attr.marker-end]="getArrowMarker(arrow.color)"
+            opacity="0.7"
+            class="event-arrow"/>
+        }
+
+        <!-- Origin position marker (temporary during recording) -->
+        @if (originPosition()) {
+          <circle 
+            [attr.cx]="originPosition()!.x * 10.3"
+            [attr.cy]="originPosition()!.y * 6.7"
+            r="10"
+            fill="orange"
+            opacity="0.8"
+            stroke="white"
+            stroke-width="2"
+            class="origin-marker">
+            <animate attributeName="r" values="10;14;10" dur="1s" repeatCount="indefinite"/>
+          </circle>
+        }
+        
         <!-- Players -->
         @for (player of players(); track player.id) {
           <g class="player" 
              [attr.transform]="getPlayerTransform(player)"
-             (click)="onPlayerClick($event, player)"
              (mousedown)="onPlayerMouseDown($event, player)"
-             [class.dragging]="draggedPlayerId() === player.id">
+             (click)="onPlayerClick($event, player)"
+             [class.dragging]="draggedPlayerId() === player.id"
+             style="pointer-events: all;">
             
             <!-- Player circle -->
             <circle 
@@ -94,7 +147,8 @@ import { EventRecordingService } from '../../services/event-recording.service';
               [attr.stroke]="player.team === 'home' ? '#0d47a1' : '#b71c1c'"
               stroke-width="2"
               class="player-circle"
-              [class.selected]="selectedPlayer()?.id === player.id"/>
+              [class.selected]="selectedPlayer()?.id === player.id"
+              style="pointer-events: all;"/>
             
             <!-- Jersey number -->
             <text 
@@ -103,7 +157,8 @@ import { EventRecordingService } from '../../services/event-recording.service';
               fill="white"
               font-size="14"
               font-weight="bold"
-              class="player-number">
+              class="player-number"
+              style="pointer-events: none;">
               {{ player.jerseyNumber }}
             </text>
           </g>
@@ -148,11 +203,12 @@ import { EventRecordingService } from '../../services/event-recording.service';
     }
 
     .football-field.interactive {
-      cursor: crosshair;
+      /* cursor removed - let players show grab cursor */
     }
 
     .field-bg {
       fill: var(--field-green, #4caf50);
+      cursor: crosshair;
     }
 
     .field-line {
@@ -161,8 +217,12 @@ import { EventRecordingService } from '../../services/event-recording.service';
     }
 
     .player {
-      cursor: pointer;
+      cursor: grab;
       transition: transform 0.2s ease;
+    }
+
+    .player:active {
+      cursor: grabbing;
     }
 
     .player:hover .player-circle {
@@ -210,6 +270,8 @@ export class FootballFieldComponent {
   interactive = input<boolean>(true);
   showCoordinates = input<boolean>(true);
   selectedPlayer = input<Player | null>(null);
+  originPosition = input<FieldCoordinates | null>(null); // Temporary marker for dual-position recording
+  arrows = input<EventArrow[]>([]); // Event arrows to display
 
   // Outputs
   @Output() fieldClick = new EventEmitter<FieldCoordinates>();
@@ -236,10 +298,8 @@ export class FootballFieldComponent {
   onFieldClick(event: MouseEvent): void {
     if (!this.interactive()) return;
 
-    // Ignore click if we were dragging
-    if (this.isDragging()) {
-      this.isDragging.set(false);
-      this.draggedPlayerId.set(null);
+    // Don't process field clicks while dragging or if we just finished dragging
+    if (this.isDragging() || this.draggedPlayerId()) {
       return;
     }
 
@@ -262,6 +322,7 @@ export class FootballFieldComponent {
   onPlayerMouseDown(event: MouseEvent, player: Player): void {
     if (!this.interactive()) return;
 
+
     event.stopPropagation();
     event.preventDefault(); // Prevent text selection
     this.isDragging.set(true);
@@ -270,7 +331,10 @@ export class FootballFieldComponent {
 
   onFieldMouseMove(event: MouseEvent): void {
     if (this.isDragging() && this.draggedPlayerId()) {
+
       event.preventDefault();
+      event.stopPropagation();
+
       const rect = this.fieldElement.nativeElement.getBoundingClientRect();
       const x = ((event.clientX - rect.left) / rect.width) * 100;
       const y = ((event.clientY - rect.top) / rect.height) * 100;
@@ -278,6 +342,7 @@ export class FootballFieldComponent {
       // Clamp to 0-100
       const clampedX = Math.max(0, Math.min(100, x));
       const clampedY = Math.max(0, Math.min(100, y));
+
 
       this.eventService.updatePlayerPosition(this.draggedPlayerId()!, { x: clampedX, y: clampedY });
     }
@@ -294,6 +359,19 @@ export class FootballFieldComponent {
     if (this.isDragging()) {
       this.isDragging.set(false);
       this.draggedPlayerId.set(null);
+    }
+  }
+
+  /**
+   * Get SVG marker ID based on arrow color
+   */
+  getArrowMarker(color: string): string {
+    if (color.includes('green') || color === '#4caf50') {
+      return 'url(#arrowhead-green)';
+    } else if (color.includes('red') || color === '#f44336') {
+      return 'url(#arrowhead-red)';
+    } else {
+      return 'url(#arrowhead-yellow)';
     }
   }
 

@@ -11,7 +11,15 @@ export interface LiveEvent {
     team: 'home' | 'away';
     playerId: string; // Primary player involved
     secondaryPlayerIds?: string[]; // Additional players involved
-    coordinates: FieldCoordinates; // Where the event occurred
+    coordinates: FieldCoordinates; // Where the event occurred (origin for dual-position events)
+
+    // Dual-position event fields (for passes, shots, crosses, etc.)
+    originCoordinates?: FieldCoordinates; // Starting position of the event
+    destinationCoordinates?: FieldCoordinates; // Ending position of the event
+    receiverId?: string; // Player who received the pass/ball
+    distance?: number; // Distance in meters (calculated)
+    direction?: number; // Direction in degrees 0-360 (calculated)
+
     outcome: EventOutcome;
     period: MatchPeriod;
     minute: number; // Match minute
@@ -163,4 +171,21 @@ export function isTackleEvent(event: LiveEvent): event is TackleEvent {
 
 export function isFoulEvent(event: LiveEvent): event is FoulEvent {
     return event.eventType === 'foul';
+}
+
+/**
+ * Check if an event type requires dual-position tracking (origin + destination)
+ */
+export function requiresDualPosition(eventType: EventType): boolean {
+    const dualPositionEvents: EventType[] = [
+        'pass',
+        'shot',
+        'goal',
+        'cross',
+        'corner',
+        'throw_in',
+        'free_kick',
+        'penalty'
+    ];
+    return dualPositionEvents.includes(eventType);
 }

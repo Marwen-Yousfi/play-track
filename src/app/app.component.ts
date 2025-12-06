@@ -1,8 +1,8 @@
-import { Component, OnInit, ViewChild, signal, effect } from '@angular/core';
+import { Component, OnInit, ViewChild, signal, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { VideoPlayerComponent } from './components/video-player/video-player.component';
-import { FootballFieldComponent } from './components/football-field/football-field.component';
+import { FootballFieldComponent, EventArrow } from './components/football-field/football-field.component';
 import { ActionRecorderComponent } from './components/action-recorder/action-recorder.component';
 import { EventTimelineComponent } from './components/event-timeline/event-timeline.component';
 import { MatchSetupComponent } from './components/match-setup/match-setup.component';
@@ -77,6 +77,8 @@ import { MatchStatistics } from './models/statistics.model';
                 [players]="allPlayers()"
                 [interactive]="true"
                 [selectedPlayer]="selectedPlayer()"
+                [originPosition]="actionRecorder?.originCoordinates() || null"
+                [arrows]="eventArrows()"
                 (fieldClick)="onFieldClick($event)"
                 (playerClick)="onPlayerClick($event)">
               </app-football-field>
@@ -440,6 +442,20 @@ export class AppComponent implements OnInit {
 
   allPlayers = signal<Player[]>([]);
 
+  // Computed: Convert recorded events to arrows for visualization
+  eventArrows = computed<EventArrow[]>(() => {
+    const events = this.eventService.events();
+    return events
+      .filter(event => event.originCoordinates && event.destinationCoordinates)
+      .map(event => ({
+        from: event.originCoordinates!,
+        to: event.destinationCoordinates!,
+        color: event.outcome === 'successful' ? '#4caf50' :
+          event.outcome === 'unsuccessful' ? '#f44336' : '#ffc107',
+        label: event.eventType
+      }));
+  });
+
   constructor(
     public eventService: EventRecordingService,
     private statsService: StatisticsService,
@@ -452,7 +468,7 @@ export class AppComponent implements OnInit {
         const players = [...match.homeTeam.players, ...match.awayTeam.players];
         this.allPlayers.set(players);
       }
-    });
+    }, { allowSignalWrites: true });
   }
 
   ngOnInit(): void {
