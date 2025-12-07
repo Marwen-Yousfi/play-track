@@ -280,6 +280,7 @@ import { MatchStatistics } from './core/models/statistics.model';
       display: flex;
       align-items: center;
       justify-content: center;
+      /* Allow field to use full available width */
     }
 
     .right-panel {
