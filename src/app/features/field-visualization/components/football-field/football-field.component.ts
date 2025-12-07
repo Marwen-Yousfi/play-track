@@ -113,6 +113,8 @@ export interface EventArrow {
       width: 100%;
       max-width: 100%;
       margin: 0 auto;
+      /* Ensure consistent sizing across all modes */
+      min-height: 400px;
     }
 
     .football-field {
@@ -121,6 +123,8 @@ export interface EventArrow {
       display: block;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      /* Maintain aspect ratio */
+      aspect-ratio: 1050 / 680;
     }
 
     .football-field.interactive {
