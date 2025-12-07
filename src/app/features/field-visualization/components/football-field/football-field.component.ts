@@ -2,6 +2,7 @@ import { Component, Output, EventEmitter, input, signal, ElementRef, ViewChild, 
 import { CommonModule } from '@angular/common';
 import { Player, FieldCoordinates } from '../../../../core/models/player.model';
 import { EventRecordingService } from '../../../../core/services/event-recording.service';
+import { FORMATIONS, getFormationList, FormationTemplate } from '../../utils/formations';
 
 /**
  * Arrow interface for displaying event trajectories
@@ -185,6 +186,13 @@ export class FootballFieldComponent {
 
   // State
   lastClickPosition = signal<FieldCoordinates | null>(null);
+
+  // Field mode
+  fieldMode = signal<'record' | 'formation' | 'analysis'>('record');
+
+  // Formation management
+  availableFormations = getFormationList();
+  selectedFormation = signal<string | null>(null);
 
   // Tooltip state
   hoveredPlayer = signal<Player | null>(null);
@@ -492,6 +500,91 @@ export class FootballFieldComponent {
     // This would need to be handled by parent component
     // For now, we just emit a null player click
     this.playerClick.emit(null as any);
+  }
+
+  /**
+   * Switch field mode
+   */
+  setMode(mode: 'record' | 'formation' | 'analysis'): void {
+    this.fieldMode.set(mode);
+  }
+
+  /**
+   * Apply formation to players
+   */
+  applyFormation(formationName: string): void {
+    const formation = FORMATIONS[formationName];
+    if (!formation) return;
+
+    const currentMatch = this.eventService.currentMatch();
+    if (!currentMatch) return;
+
+    const homeTeam = currentMatch.homeTeam;
+
+    // Get players by position
+    const gk = homeTeam.players.find(p => p.position === 'GK');
+    const defenders = homeTeam.players.filter(p => p.position === 'DEF');
+    const midfielders = homeTeam.players.filter(p => p.position === 'MID');
+    const forwards = homeTeam.players.filter(p => p.position === 'FWD');
+
+    // Apply formation positions
+    if (gk) {
+      this.eventService.updatePlayerPosition(gk.id, formation.positions.GK);
+    }
+
+    defenders.forEach((player, index) => {
+      if (index < formation.positions.DEF.length) {
+        this.eventService.updatePlayerPosition(player.id, formation.positions.DEF[index]);
+      }
+    });
+
+    midfielders.forEach((player, index) => {
+      if (index < formation.positions.MID.length) {
+        this.eventService.updatePlayerPosition(player.id, formation.positions.MID[index]);
+      }
+    });
+
+    forwards.forEach((player, index) => {
+      if (index < formation.positions.FWD.length) {
+        this.eventService.updatePlayerPosition(player.id, formation.positions.FWD[index]);
+      }
+    });
+
+    this.selectedFormation.set(formationName);
+  }
+
+  /**
+   * Mirror formation (flip horizontally)
+   */
+  mirrorFormation(): void {
+    const currentMatch = this.eventService.currentMatch();
+    if (!currentMatch) return;
+
+    const allPlayers = [...currentMatch.homeTeam.players, ...currentMatch.awayTeam.players];
+
+    allPlayers.forEach(player => {
+      const newY = 100 - player.fieldPosition.y; // Flip Y coordinate
+      this.eventService.updatePlayerPosition(player.id, {
+        x: player.fieldPosition.x,
+        y: newY
+      });
+    });
+  }
+
+  /**
+   * Rotate formation 180 degrees
+   */
+  rotateFormation(): void {
+    const currentMatch = this.eventService.currentMatch();
+    if (!currentMatch) return;
+
+    const allPlayers = [...currentMatch.homeTeam.players, ...currentMatch.awayTeam.players];
+
+    allPlayers.forEach(player => {
+      const newX = 100 - player.fieldPosition.x; // Flip X
+      const newY = 100 - player.fieldPosition.y; // Flip Y
+      this.eventService.updatePlayerPosition(player.id, { x: newX, y: newY });
+    });
   }
 }
 
