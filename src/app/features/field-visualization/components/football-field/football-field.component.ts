@@ -309,6 +309,16 @@ export class FootballFieldComponent {
     this.hoveredPlayer.set(null);
     this.tooltipPosition.set(null);
 
+    // Save current position to history before drag starts
+    const currentMatch = this.eventService.currentMatch();
+    if (currentMatch) {
+      const allPlayers = [...currentMatch.homeTeam.players, ...currentMatch.awayTeam.players];
+      const currentPlayer = allPlayers.find(p => p.id === player.id);
+      if (currentPlayer) {
+        this.addToHistory(player.id, { ...currentPlayer.fieldPosition });
+      }
+    }
+
     event.stopPropagation();
     event.preventDefault(); // Prevent text selection
     this.isDragging.set(true);
@@ -426,7 +436,15 @@ export class FootballFieldComponent {
    * Move selected player with arrow keys
    */
   private moveSelectedPlayerWithArrows(key: string): void {
-    const player = this.selectedPlayer();
+    const selectedPlayerId = this.selectedPlayer()?.id;
+    if (!selectedPlayerId) return;
+
+    // Get current player from match data
+    const currentMatch = this.eventService.currentMatch();
+    if (!currentMatch) return;
+
+    const allPlayers = [...currentMatch.homeTeam.players, ...currentMatch.awayTeam.players];
+    const player = allPlayers.find(p => p.id === selectedPlayerId);
     if (!player) return;
 
     const step = 1; // 1% movement per key press
@@ -448,8 +466,11 @@ export class FootballFieldComponent {
         break;
     }
 
+    // Save to history before updating
+    this.addToHistory(player.id, { ...player.fieldPosition });
+
+    // Update position
     const newPosition = { x: newX, y: newY };
-    this.addToHistory(player.id, player.fieldPosition);
     this.eventService.updatePlayerPosition(player.id, newPosition);
   }
 
