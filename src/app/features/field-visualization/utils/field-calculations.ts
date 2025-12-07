@@ -1,4 +1,5 @@
-import { FieldCoordinates } from '../models/player.model';
+import { FieldCoordinates } from "../../../core/models/player.model";
+
 
 /**
  * Standard football field dimensions in meters
