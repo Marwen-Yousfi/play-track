@@ -1,3 +1,42 @@
+<!-- Field Controls Toolbar -->
+<div class="field-controls">
+    <!-- Mode Switcher -->
+    <div class="mode-switcher">
+        <button class="mode-btn" [class.active]="fieldMode() === 'record'" (click)="setMode('record')"
+            title="Record events on field">
+            📍 Record
+        </button>
+        <button class="mode-btn" [class.active]="fieldMode() === 'formation'" (click)="setMode('formation')"
+            title="Arrange player formation">
+            👥 Formation
+        </button>
+        <button class="mode-btn" [class.active]="fieldMode() === 'analysis'" (click)="setMode('analysis')"
+            title="View analysis and stats">
+            📊 Analysis
+        </button>
+    </div>
+
+    <!-- Formation Tools (only visible in formation mode) -->
+    @if (fieldMode() === 'formation') {
+    <div class="formation-tools">
+        <select class="formation-select" (change)="applyFormation($any($event.target).value)"
+            [value]="selectedFormation() || ''">
+            <option value="">Select Formation</option>
+            @for (formation of availableFormations; track formation) {
+            <option [value]="formation">{{ formation }}</option>
+            }
+        </select>
+
+        <button class="tool-btn" (click)="mirrorFormation()" title="Mirror formation horizontally">
+            ↔️ Mirror
+        </button>
+        <button class="tool-btn" (click)="rotateFormation()" title="Rotate formation 180°">
+            🔄 Rotate
+        </button>
+    </div>
+    }
+</div>
+
 <div class="field-container" #fieldElement (click)="onFieldClick($event)" (mousemove)="onFieldMouseMove($event)"
     (mouseup)="onFieldMouseUp()" (mouseleave)="onFieldMouseLeave()">
     <svg class="football-field" viewBox="0 0 1050 680" [class.interactive]="interactive()">

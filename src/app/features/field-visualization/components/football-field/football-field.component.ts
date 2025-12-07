@@ -23,6 +23,91 @@ export interface EventArrow {
   imports: [CommonModule],
   templateUrl: './football-field.component.html',
   styles: [`
+    /* Field Controls Toolbar */
+    .field-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 12px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .mode-switcher {
+      display: flex;
+      gap: 8px;
+      background: #f5f5f5;
+      padding: 4px;
+      border-radius: 6px;
+    }
+
+    .mode-btn {
+      padding: 8px 16px;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      color: #666;
+    }
+
+    .mode-btn:hover {
+      background: rgba(0, 0, 0, 0.05);
+      color: #333;
+    }
+
+    .mode-btn.active {
+      background: white;
+      color: #2196f3;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .formation-tools {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .formation-select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      background: white;
+      min-width: 150px;
+    }
+
+    .formation-select:focus {
+      outline: none;
+      border-color: #2196f3;
+    }
+
+    .tool-btn {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .tool-btn:hover {
+      background: #f5f5f5;
+      border-color: #2196f3;
+    }
+
+    .tool-btn:active {
+      transform: scale(0.95);
+    }
+
     .field-container {
       position: relative;
       width: 100%;
@@ -523,9 +608,9 @@ export class FootballFieldComponent {
 
     // Get players by position
     const gk = homeTeam.players.find(p => p.position === 'GK');
-    const defenders = homeTeam.players.filter(p => p.position === 'DEF');
-    const midfielders = homeTeam.players.filter(p => p.position === 'MID');
-    const forwards = homeTeam.players.filter(p => p.position === 'FWD');
+    const defenders = homeTeam.players.filter(p => ['CB', 'LB', 'RB'].includes(p.position));
+    const midfielders = homeTeam.players.filter(p => ['CDM', 'CM', 'CAM', 'LW', 'RW'].includes(p.position));
+    const forwards = homeTeam.players.filter(p => p.position === 'ST');
 
     // Apply formation positions
     if (gk) {
