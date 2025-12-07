@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter, input, signal, ElementRef, ViewChild } from '@angular/core';
+import { Component, Output, EventEmitter, input, signal, ElementRef, ViewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Player, FieldCoordinates } from '../../../../core/models/player.model';
 import { EventRecordingService } from '../../../../core/services/event-recording.service';
@@ -95,6 +95,76 @@ export interface EventArrow {
       font-size: 12px;
       font-family: monospace;
     }
+
+    /* Player Tooltip Styles */
+    .player-tooltip {
+      position: fixed;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      padding: 12px;
+      min-width: 150px;
+      pointer-events: none;
+      z-index: 1000;
+      animation: tooltipFadeIn 0.2s ease;
+    }
+
+    @keyframes tooltipFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-5px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .tooltip-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .tooltip-number {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .tooltip-team {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 10px;
+      color: white;
+    }
+
+    .tooltip-team.home {
+      background: var(--home-team, #0d47a1);
+    }
+
+    .tooltip-team.away {
+      background: var(--away-team, #b71c1c);
+    }
+
+    .tooltip-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .tooltip-position {
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
   `]
 })
 export class FootballFieldComponent {
@@ -116,6 +186,10 @@ export class FootballFieldComponent {
   // State
   lastClickPosition = signal<FieldCoordinates | null>(null);
 
+  // Tooltip state
+  hoveredPlayer = signal<Player | null>(null);
+  tooltipPosition = signal<{ x: number; y: number } | null>(null);
+
   // Drag state
   isDragging = signal<boolean>(false);
   draggedPlayerId = signal<string | null>(null);
@@ -125,7 +199,56 @@ export class FootballFieldComponent {
   readonly fieldWidth = 1030; // SVG units
   readonly fieldHeight = 660; // SVG units
 
+  // Undo/Redo history
+  private positionHistory: Array<{ playerId: string; position: FieldCoordinates }> = [];
+  private historyIndex = -1;
+  private readonly MAX_HISTORY = 20;
+
   constructor(private eventService: EventRecordingService) { }
+
+  /**
+   * Keyboard shortcuts handler
+   */
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboardEvent(event: KeyboardEvent): void {
+    // Only handle shortcuts when field is interactive
+    if (!this.interactive()) return;
+
+    // Ctrl+Z: Undo
+    if (event.ctrlKey && event.key === 'z' && !event.shiftKey) {
+      event.preventDefault();
+      this.undo();
+      return;
+    }
+
+    // Ctrl+Y or Ctrl+Shift+Z: Redo
+    if ((event.ctrlKey && event.key === 'y') || (event.ctrlKey && event.shiftKey && event.key === 'z')) {
+      event.preventDefault();
+      this.redo();
+      return;
+    }
+
+    // Delete: Remove selected player (if any)
+    if (event.key === 'Delete' && this.selectedPlayer()) {
+      event.preventDefault();
+      this.removeSelectedPlayer();
+      return;
+    }
+
+    // Escape: Deselect player
+    if (event.key === 'Escape' && this.selectedPlayer()) {
+      event.preventDefault();
+      this.deselectPlayer();
+      return;
+    }
+
+    // Arrow keys: Fine-tune selected player position
+    if (this.selectedPlayer() && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+      event.preventDefault();
+      this.moveSelectedPlayerWithArrows(event.key);
+      return;
+    }
+  }
 
   /**
    * Handle field click to emit coordinates
@@ -154,9 +277,37 @@ export class FootballFieldComponent {
     setTimeout(() => this.lastClickPosition.set(null), 500);
   }
 
+  onPlayerMouseEnter(event: MouseEvent, player: Player): void {
+    if (!this.isDragging()) {
+      this.hoveredPlayer.set(player);
+      this.updateTooltipPosition(event);
+    }
+  }
+
+  onPlayerMouseLeave(): void {
+    this.hoveredPlayer.set(null);
+    this.tooltipPosition.set(null);
+  }
+
+  onPlayerMouseMove(event: MouseEvent): void {
+    if (this.hoveredPlayer() && !this.isDragging()) {
+      this.updateTooltipPosition(event);
+    }
+  }
+
+  private updateTooltipPosition(event: MouseEvent): void {
+    this.tooltipPosition.set({
+      x: event.clientX + 15,
+      y: event.clientY - 10
+    });
+  }
+
   onPlayerMouseDown(event: MouseEvent, player: Player): void {
     if (!this.interactive()) return;
 
+    // Hide tooltip when starting drag
+    this.hoveredPlayer.set(null);
+    this.tooltipPosition.set(null);
 
     event.stopPropagation();
     event.preventDefault(); // Prevent text selection
@@ -230,4 +381,96 @@ export class FootballFieldComponent {
     const y = 10 + (player.fieldPosition.y / 100) * this.fieldHeight;
     return `translate(${x}, ${y})`;
   }
+
+  /**
+   * Undo last player movement
+   */
+  private undo(): void {
+    if (this.historyIndex > 0) {
+      this.historyIndex--;
+      const historyItem = this.positionHistory[this.historyIndex];
+      this.eventService.updatePlayerPosition(historyItem.playerId, historyItem.position);
+    }
+  }
+
+  /**
+   * Redo player movement
+   */
+  private redo(): void {
+    if (this.historyIndex < this.positionHistory.length - 1) {
+      this.historyIndex++;
+      const historyItem = this.positionHistory[this.historyIndex];
+      this.eventService.updatePlayerPosition(historyItem.playerId, historyItem.position);
+    }
+  }
+
+  /**
+   * Add position to history for undo/redo
+   */
+  private addToHistory(playerId: string, position: FieldCoordinates): void {
+    // Remove any history after current index
+    this.positionHistory = this.positionHistory.slice(0, this.historyIndex + 1);
+
+    // Add new position
+    this.positionHistory.push({ playerId, position });
+
+    // Limit history size
+    if (this.positionHistory.length > this.MAX_HISTORY) {
+      this.positionHistory.shift();
+    } else {
+      this.historyIndex++;
+    }
+  }
+
+  /**
+   * Move selected player with arrow keys
+   */
+  private moveSelectedPlayerWithArrows(key: string): void {
+    const player = this.selectedPlayer();
+    if (!player) return;
+
+    const step = 1; // 1% movement per key press
+    let newX = player.fieldPosition.x;
+    let newY = player.fieldPosition.y;
+
+    switch (key) {
+      case 'ArrowUp':
+        newY = Math.max(0, newY - step);
+        break;
+      case 'ArrowDown':
+        newY = Math.min(100, newY + step);
+        break;
+      case 'ArrowLeft':
+        newX = Math.max(0, newX - step);
+        break;
+      case 'ArrowRight':
+        newX = Math.min(100, newX + step);
+        break;
+    }
+
+    const newPosition = { x: newX, y: newY };
+    this.addToHistory(player.id, player.fieldPosition);
+    this.eventService.updatePlayerPosition(player.id, newPosition);
+  }
+
+  /**
+   * Remove selected player from field
+   */
+  private removeSelectedPlayer(): void {
+    const player = this.selectedPlayer();
+    if (player) {
+      // Emit event to parent to handle player removal
+      this.playerClick.emit(player); // Parent can decide what to do
+    }
+  }
+
+  /**
+   * Deselect current player
+   */
+  private deselectPlayer(): void {
+    // This would need to be handled by parent component
+    // For now, we just emit a null player click
+    this.playerClick.emit(null as any);
+  }
 }
+

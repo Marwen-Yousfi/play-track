@@ -79,8 +79,9 @@
         <!-- Players -->
         @for (player of players(); track player.id) {
         <g class="player" [attr.transform]="getPlayerTransform(player)" (mousedown)="onPlayerMouseDown($event, player)"
-            (click)="onPlayerClick($event, player)" [class.dragging]="draggedPlayerId() === player.id"
-            style="pointer-events: all;">
+            (mouseenter)="onPlayerMouseEnter($event, player)" (mouseleave)="onPlayerMouseLeave()"
+            (mousemove)="onPlayerMouseMove($event)" (click)="onPlayerClick($event, player)"
+            [class.dragging]="draggedPlayerId() === player.id" style="pointer-events: all;">
 
             <!-- Player circle -->
             <circle [attr.r]="playerRadius"
@@ -109,6 +110,21 @@
     @if (showCoordinates() && lastClickPosition()) {
     <div class="coordinates-display">
         Click position: ({{ lastClickPosition()!.x.toFixed(1) }}, {{ lastClickPosition()!.y.toFixed(1) }})
+    </div>
+    }
+
+    <!-- Player Tooltip -->
+    @if (hoveredPlayer() && tooltipPosition()) {
+    <div class="player-tooltip" [style.left.px]="tooltipPosition()!.x" [style.top.px]="tooltipPosition()!.y">
+        <div class="tooltip-header">
+            <span class="tooltip-number">#{{ hoveredPlayer()!.jerseyNumber }}</span>
+            <span class="tooltip-team" [class.home]="hoveredPlayer()!.team === 'home'"
+                [class.away]="hoveredPlayer()!.team === 'away'">
+                {{ hoveredPlayer()!.team === 'home' ? 'Home' : 'Away' }}
+            </span>
+        </div>
+        <div class="tooltip-name">{{ hoveredPlayer()!.name }}</div>
+        <div class="tooltip-position">{{ hoveredPlayer()!.position }}</div>
     </div>
     }
 </div>
