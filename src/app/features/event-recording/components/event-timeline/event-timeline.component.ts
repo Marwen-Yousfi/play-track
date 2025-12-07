@@ -1,17 +1,17 @@
 import { Component, computed, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LiveEvent } from '../../models/event.model';
-import { VideoSyncService } from '../../services/video-sync.service';
-import { EventRecordingService } from '../../services/event-recording.service';
+import { LiveEvent } from '../../../../core/models/event.model';
+import { VideoSyncService } from '../../../../core/services/video-sync.service';
+import { EventRecordingService } from '../../../../core/services/event-recording.service';
 
 /**
  * Event timeline component showing all recorded events
  */
 @Component({
-    selector: 'app-event-timeline',
-    standalone: true,
-    imports: [CommonModule],
-    template: `
+  selector: 'app-event-timeline',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
     <div class="event-timeline">
       <div class="timeline-header">
         <h3>Event Timeline</h3>
@@ -73,7 +73,7 @@ import { EventRecordingService } from '../../services/event-recording.service';
       </div>
     </div>
   `,
-    styles: [`
+  styles: [`
     .event-timeline {
       background: white;
       border-radius: 8px;
@@ -271,66 +271,66 @@ import { EventRecordingService } from '../../services/event-recording.service';
   `]
 })
 export class EventTimelineComponent {
-    events = input<LiveEvent[]>([]);
+  events = input<LiveEvent[]>([]);
 
-    sortedEvents = computed(() =>
-        [...this.events()].sort((a, b) => b.timestamp - a.timestamp)
-    );
+  sortedEvents = computed(() =>
+    [...this.events()].sort((a, b) => b.timestamp - a.timestamp)
+  );
 
-    constructor(
-        private videoSync: VideoSyncService,
-        private eventService: EventRecordingService
-    ) { }
+  constructor(
+    private videoSync: VideoSyncService,
+    private eventService: EventRecordingService
+  ) { }
 
-    formatTime(seconds: number): string {
-        return this.videoSync.formatTime(seconds);
+  formatTime(seconds: number): string {
+    return this.videoSync.formatTime(seconds);
+  }
+
+  formatEventType(type: string): string {
+    return type.replace(/_/g, ' ');
+  }
+
+  getEventIcon(type: string): string {
+    const icons: Record<string, string> = {
+      pass: '⚡',
+      shot: '⚽',
+      goal: '🥅',
+      tackle: '🦵',
+      interception: '✋',
+      cross: '↗️',
+      corner: '🚩',
+      foul: '⚠️',
+      save: '🧤',
+      clearance: '🦶',
+      dribble: '🏃',
+      throw_in: '🤾'
+    };
+    return icons[type] || '⚪';
+  }
+
+  getPlayerNumber(playerId: string): string {
+    const match = this.eventService.currentMatch();
+    if (!match) return '?';
+
+    const allPlayers = [...match.homeTeam.players, ...match.awayTeam.players];
+    const player = allPlayers.find(p => p.id === playerId);
+    return player ? player.jerseyNumber.toString() : '?';
+  }
+
+  seekToEvent(event: LiveEvent): void {
+    this.videoSync.seekTo(event.timestamp);
+  }
+
+  editEvent(mouseEvent: MouseEvent, event: LiveEvent): void {
+    mouseEvent.stopPropagation();
+    // TODO: Implement edit functionality
+    console.log('Edit event:', event);
+  }
+
+  deleteEvent(mouseEvent: MouseEvent, event: LiveEvent): void {
+    mouseEvent.stopPropagation();
+    if (confirm('Are you sure you want to delete this event?')) {
+      this.eventService.deleteEvent(event.id);
     }
-
-    formatEventType(type: string): string {
-        return type.replace(/_/g, ' ');
-    }
-
-    getEventIcon(type: string): string {
-        const icons: Record<string, string> = {
-            pass: '⚡',
-            shot: '⚽',
-            goal: '🥅',
-            tackle: '🦵',
-            interception: '✋',
-            cross: '↗️',
-            corner: '🚩',
-            foul: '⚠️',
-            save: '🧤',
-            clearance: '🦶',
-            dribble: '🏃',
-            throw_in: '🤾'
-        };
-        return icons[type] || '⚪';
-    }
-
-    getPlayerNumber(playerId: string): string {
-        const match = this.eventService.currentMatch();
-        if (!match) return '?';
-
-        const allPlayers = [...match.homeTeam.players, ...match.awayTeam.players];
-        const player = allPlayers.find(p => p.id === playerId);
-        return player ? player.jerseyNumber.toString() : '?';
-    }
-
-    seekToEvent(event: LiveEvent): void {
-        this.videoSync.seekTo(event.timestamp);
-    }
-
-    editEvent(mouseEvent: MouseEvent, event: LiveEvent): void {
-        mouseEvent.stopPropagation();
-        // TODO: Implement edit functionality
-        console.log('Edit event:', event);
-    }
-
-    deleteEvent(mouseEvent: MouseEvent, event: LiveEvent): void {
-        mouseEvent.stopPropagation();
-        if (confirm('Are you sure you want to delete this event?')) {
-            this.eventService.deleteEvent(event.id);
-        }
-    }
+  }
 }

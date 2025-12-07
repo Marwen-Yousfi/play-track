@@ -1,17 +1,17 @@
 import { Component, OnInit, ViewChild, signal, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
-import { VideoPlayerComponent } from './components/video-player/video-player.component';
-import { FootballFieldComponent, EventArrow } from './components/football-field/football-field.component';
-import { ActionRecorderComponent } from './components/action-recorder/action-recorder.component';
-import { EventTimelineComponent } from './components/event-timeline/event-timeline.component';
-import { MatchSetupComponent } from './components/match-setup/match-setup.component';
-import { EventRecordingService } from './services/event-recording.service';
-import { StatisticsService } from './services/statistics.service';
-import { ValidationService } from './services/validation.service';
-import { Match, Team } from './models/match.model';
-import { Player, FieldCoordinates } from './models/player.model';
-import { MatchStatistics } from './models/statistics.model';
+import { VideoPlayerComponent } from './features/video-analysis/components/video-player/video-player.component';
+import { FootballFieldComponent, EventArrow } from './features/field-visualization/components/football-field/football-field.component';
+import { ActionRecorderComponent } from './features/event-recording/components/action-recorder/action-recorder.component';
+import { EventTimelineComponent } from './features/event-recording/components/event-timeline/event-timeline.component';
+import { MatchSetupComponent } from './features/match-management/components/match-setup/match-setup.component';
+import { EventRecordingService } from './core/services/event-recording.service';
+import { StatisticsService } from './core/services/statistics.service';
+import { ValidationService } from './features/event-recording/services/validation.service';
+import { Match, Team } from './core/models/match.model';
+import { Player, FieldCoordinates } from './core/models/player.model';
+import { MatchStatistics } from './core/models/statistics.model';
 
 @Component({
   selector: 'app-root',

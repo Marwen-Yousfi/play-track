@@ -1,4 +1,4 @@
-import { LiveEvent } from './event.model';
+import { LiveEvent } from '../../../core/models/event.model';
 
 /**
  * Validation rule definition

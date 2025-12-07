@@ -1,8 +1,8 @@
 import { Component, EventEmitter, Output, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Match } from '../../models/match.model';
-import { Player } from '../../models/player.model';
+import { Match } from '../../../../core/models/match.model';
+import { Player } from '../../../../core/models/player.model';
 
 @Component({
   selector: 'app-match-setup',

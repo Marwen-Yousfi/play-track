@@ -1,7 +1,7 @@
 import { Component, Output, EventEmitter, input, signal, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Player, FieldCoordinates } from '../../models/player.model';
-import { EventRecordingService } from '../../services/event-recording.service';
+import { Player, FieldCoordinates } from '../../../../core/models/player.model';
+import { EventRecordingService } from '../../../../core/services/event-recording.service';
 
 /**
  * Arrow interface for displaying event trajectories

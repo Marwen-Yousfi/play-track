@@ -1,11 +1,11 @@
 import { Component, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { EventRecordingService } from '../../services/event-recording.service';
-import { VideoSyncService } from '../../services/video-sync.service';
-import { LiveEvent, EventType, EventOutcome, MatchPeriod } from '../../models/event.model';
-import { Player, FieldCoordinates } from '../../models/player.model';
-import { calculateDistance, calculateDirection } from '../../utils/field-calculations';
+import { EventRecordingService } from '../../../../core/services/event-recording.service';
+import { VideoSyncService } from '../../../../core/services/video-sync.service';
+import { LiveEvent, EventType, EventOutcome, MatchPeriod } from '../../../../core/models/event.model';
+import { Player, FieldCoordinates } from '../../../../core/models/player.model';
+import { calculateDistance, calculateDirection } from '../../../field-visualization/utils/field-calculations';
 
 /**
  * Multi-step action recorder component

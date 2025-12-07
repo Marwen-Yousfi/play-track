@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, input, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { VideoSyncService } from '../../services/video-sync.service';
+import { VideoSyncService } from '../../../../core/services/video-sync.service';
 
 /**
  * Video player component with timeline and controls

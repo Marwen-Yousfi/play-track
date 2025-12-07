@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { LiveEvent } from '../models/event.model';
-import { Match } from '../models/match.model';
+import { LiveEvent } from '../../../core/models/event.model';
+import { Match } from '../../../core/models/match.model';
 import {
     ValidationRule,
     ValidationContext,
