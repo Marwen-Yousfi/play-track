@@ -23,163 +23,17 @@ export interface EventArrow {
   imports: [CommonModule],
   templateUrl: './football-field.component.html',
   styles: [`
-    /* Field Controls Toolbar */
-    .field-controls {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      padding: 12px;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .mode-switcher {
-      display: flex;
-      gap: 8px;
-      background: #f5f5f5;
-      padding: 4px;
-      border-radius: 6px;
-    }
-
-    .team-formation-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .team-label {
-      font-size: 14px;
-      font-weight: 600;
-      color: #333;
-      white-space: nowrap;
-    }
-
-    .mode-btn {
-      padding: 8px 16px;
-      border: none;
-      background: transparent;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-      transition: all 0.2s;
-      color: #666;
-    }
-
-    .mode-btn:hover {
-      background: rgba(0, 0, 0, 0.05);
-      color: #333;
-    }
-
-    .mode-btn.active {
-      background: white;
-      color: #2196f3;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .formation-tools {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .formation-select {
-      padding: 8px 12px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 14px;
-      cursor: pointer;
-      background: white;
-      min-width: 150px;
-    }
-
-    .formation-select:focus {
-      outline: none;
-      border-color: #2196f3;
-    }
-
-    .tool-btn {
-      padding: 8px 12px;
-      border: 1px solid #ddd;
-      background: white;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: all 0.2s;
-    }
-
-    .tool-btn:hover {
-      background: #f5f5f5;
-      border-color: #2196f3;
-    }
-
-    .tool-btn:active {
-      transform: scale(0.95);
-    }
-
-    .overlay-toggles {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-
-    .overlay-btn {
-      padding: 6px 12px;
-      border: 1px solid #ddd;
-      background: white;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 13px;
-      transition: all 0.2s;
-    }
-
-    .overlay-btn:hover {
-      background: #f5f5f5;
-      border-color: #2196f3;
-    }
-
-    .overlay-btn.active {
-      background: #2196f3;
-      color: white;
-      border-color: #2196f3;
-    }
-
-    .zoom-controls {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .zoom-btn {
-      padding: 6px 12px;
-      border: 1px solid #ddd;
-      background: white;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 13px;
-      transition: all 0.2s;
-    }
-
-    .zoom-btn:hover {
-      background: #f5f5f5;
-      border-color: #2196f3;
-    }
-
-    .zoom-level {
-      font-size: 13px;
-      font-weight: 600;
-      color: #666;
-      min-width: 45px;
-      text-align: center;
-    }
-
-    .formation-tools-spacer {
-      min-height: 40px; /* Same height as formation tools */
-    }
+    .field-controls{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:12px;background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);gap:16px;flex-wrap:wrap}
+    .mode-switcher{display:flex;gap:8px;background:#f5f5f5;padding:4px;border-radius:6px}
+    .team-formation-group{display:flex;align-items:center;gap:8px}
+    .team-label{font-size:14px;font-weight:600;color:#333;white-space:nowrap}
+    .mode-btn,.tool-btn,.overlay-btn{padding:8px 12px;border:1px solid #ddd;background:#fff;border-radius:4px;cursor:pointer;font-size:14px;transition:all .2s}
+    .mode-btn{padding:8px 16px;background:transparent;border:none;color:#666}
+    .mode-btn:hover,.tool-btn:hover,.overlay-btn:hover{background:#f5f5f5;border-color:#2196f3}
+    .mode-btn.active{background:#fff;color:#2196f3;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+    .overlay-btn.active{background:#2196f3;color:#fff;border-color:#2196f3}
+    .formation-select{padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px;cursor:pointer;background:#fff;min-width:150px}
+    .formation-select:focus{outline:none;border-color:#2196f3}
 
     .field-container {
       position: relative;
@@ -254,18 +108,6 @@ export interface EventArrow {
     .tooltip-team.away{background:var(--away-team,#b71c1c)}
     .tooltip-name{font-size:14px;font-weight:600;color:#333;margin-bottom:4px}
     .tooltip-position{font-size:12px;color:#666;text-transform:uppercase;letter-spacing:.5px}
-
-    .context-menu{position:absolute;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);min-width:200px;z-index:1000;overflow:hidden}
-
-    .context-menu-header{padding:12px 16px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px}
-
-    .player-number-badge{background:rgba(255,255,255,.3);padding:2px 8px;border-radius:4px;font-size:12px;font-weight:bold}
-
-    .context-menu-item{padding:10px 16px;cursor:pointer;transition:background .2s;font-size:13px;border-bottom:1px solid #f0f0f0}
-
-    .context-menu-item:last-child{border-bottom:none}
-
-    .context-menu-item:hover{background:#f5f5f5}
 
     .coordinates-display{position:absolute;bottom:10px;left:10px;background:rgba(0,0,0,.7);color:#fff;padding:5px 10px;border-radius:4px;font-size:12px;font-family:monospace}
   `]
