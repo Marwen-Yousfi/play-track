@@ -242,18 +242,7 @@ export interface EventArrow {
 
 
 
-    /* Player Tooltip Styles */
-    .player-tooltip {
-      position: fixed;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      padding: 12px;
-      min-width: 150px;
-      pointer-events: none;
-      z-index: 1000;
-      animation: tooltipFadeIn 0.2s ease;
-    }
+    .player-tooltip{position:fixed;background:#fff;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.2);padding:12px;min-width:150px;pointer-events:none;z-index:1000;animation:tooltipFadeIn .2s ease}
 
     @keyframes tooltipFadeIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
 
@@ -266,51 +255,17 @@ export interface EventArrow {
     .tooltip-name{font-size:14px;font-weight:600;color:#333;margin-bottom:4px}
     .tooltip-position{font-size:12px;color:#666;text-transform:uppercase;letter-spacing:.5px}
 
-    .context-menu {
-      position: absolute;
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      min-width: 200px;
-      z-index: 1000;
-      overflow: hidden;
-    }
+    .context-menu{position:absolute;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);min-width:200px;z-index:1000;overflow:hidden}
 
-    .context-menu-header {
-      padding: 12px 16px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      font-weight: 600;
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+    .context-menu-header{padding:12px 16px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px}
 
-    .player-number-badge {
-      background: rgba(255,255,255,0.3);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: bold;
-    }
+    .player-number-badge{background:rgba(255,255,255,.3);padding:2px 8px;border-radius:4px;font-size:12px;font-weight:bold}
 
-    .context-menu-item {
-      padding: 10px 16px;
-      cursor: pointer;
-      transition: background 0.2s;
-      font-size: 13px;
-      border-bottom: 1px solid #f0f0f0;
-    }
+    .context-menu-item{padding:10px 16px;cursor:pointer;transition:background .2s;font-size:13px;border-bottom:1px solid #f0f0f0}
 
-    .context-menu-item:last-child {
-      border-bottom: none;
-    }
+    .context-menu-item:last-child{border-bottom:none}
 
-    .context-menu-item:hover {
-      background: #f5f5f5;
-    }
+    .context-menu-item:hover{background:#f5f5f5}
 
     .coordinates-display{position:absolute;bottom:10px;left:10px;background:rgba(0,0,0,.7);color:#fff;padding:5px 10px;border-radius:4px;font-size:12px;font-family:monospace}
   `]
