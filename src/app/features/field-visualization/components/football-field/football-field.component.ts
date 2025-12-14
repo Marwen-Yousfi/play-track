@@ -238,26 +238,9 @@ export interface EventArrow {
       filter: brightness(1.3) drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
     }
 
-    .player-number {
-      pointer-events: none;
-      user-select: none;
-    }
+    .player-number,.click-indicator{pointer-events:none;user-select:none}
 
-    .click-indicator {
-      pointer-events: none;
-    }
 
-    .coordinates-display {
-      position: absolute;
-      bottom: 10px;
-      right: 10px;
-      background: rgba(0, 0, 0, 0.7);
-      color: white;
-      padding: 8px 12px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-family: monospace;
-    }
 
     /* Player Tooltip Styles */
     .player-tooltip {
@@ -272,62 +255,16 @@ export interface EventArrow {
       animation: tooltipFadeIn 0.2s ease;
     }
 
-    @keyframes tooltipFadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(-5px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
+    @keyframes tooltipFadeIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
 
-    .tooltip-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #e0e0e0;
-    }
+    .tooltip-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #e0e0e0}
 
-    .tooltip-number {
-      font-size: 18px;
-      font-weight: bold;
-      color: #333;
-    }
-
-    .tooltip-team {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      padding: 3px 8px;
-      border-radius: 10px;
-      color: white;
-    }
-
-    .tooltip-team.home {
-      background: var(--home-team, #0d47a1);
-    }
-
-    .tooltip-team.away {
-      background: var(--away-team, #b71c1c);
-    }
-
-    .tooltip-name {
-      font-size: 14px;
-      font-weight: 600;
-      color: #333;
-      margin-bottom: 4px;
-    }
-
-    .tooltip-position {
-      font-size: 12px;
-      color: #666;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
+    .tooltip-number{font-size:18px;font-weight:bold;color:#333}
+    .tooltip-team{font-size:11px;font-weight:600;text-transform:uppercase;padding:3px 8px;border-radius:10px;color:#fff}
+    .tooltip-team.home{background:var(--home-team,#0d47a1)}
+    .tooltip-team.away{background:var(--away-team,#b71c1c)}
+    .tooltip-name{font-size:14px;font-weight:600;color:#333;margin-bottom:4px}
+    .tooltip-position{font-size:12px;color:#666;text-transform:uppercase;letter-spacing:.5px}
 
     .context-menu {
       position: absolute;
@@ -375,17 +312,7 @@ export interface EventArrow {
       background: #f5f5f5;
     }
 
-    .coordinates-display {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.7);
-      color: white;
-      padding: 5px 10px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-family: monospace;
-    }
+    .coordinates-display{position:absolute;bottom:10px;left:10px;background:rgba(0,0,0,.7);color:#fff;padding:5px 10px;border-radius:4px;font-size:12px;font-family:monospace}
   `]
 })
 export class FootballFieldComponent {
