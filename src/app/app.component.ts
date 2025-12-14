@@ -44,9 +44,6 @@ import { MatchStatistics } from './core/models/statistics.model';
             </div>
             
             <div class="actions">
-              <button class="btn btn-success" (click)="toggleRecording()">
-                {{ eventService.isRecording() ? '⏸ Pause' : '▶ Record' }}
-              </button>
               <button class="btn btn-secondary" (click)="computeStatistics()">
                 📊 Stats
               </button>
@@ -78,6 +75,7 @@ import { MatchStatistics } from './core/models/statistics.model';
                 [interactive]="true"
                 [selectedPlayer]="selectedPlayer()"
                 [originPosition]="actionRecorder?.originCoordinates() || null"
+                [destinationPosition]="actionRecorder?.destinationCoordinates() || null"
                 [arrows]="eventArrows()"
                 (fieldClick)="onFieldClick($event)"
                 (playerClick)="onPlayerClick($event)">
@@ -443,18 +441,22 @@ export class AppComponent implements OnInit {
 
   allPlayers = signal<Player[]>([]);
 
-  // Computed: Convert recorded events to arrows for visualization
+  // Computed: Show only the last saved event arrow
   eventArrows = computed<EventArrow[]>(() => {
     const events = this.eventService.events();
-    return events
-      .filter(event => event.originCoordinates && event.destinationCoordinates)
-      .map(event => ({
-        from: event.originCoordinates!,
-        to: event.destinationCoordinates!,
-        color: event.outcome === 'successful' ? '#4caf50' :
-          event.outcome === 'unsuccessful' ? '#f44336' : '#ffc107',
-        label: event.eventType
-      }));
+    const eventsWithArrows = events.filter(event => event.originCoordinates && event.destinationCoordinates);
+
+    // Return only the last event arrow
+    if (eventsWithArrows.length === 0) return [];
+
+    const lastEvent = eventsWithArrows[eventsWithArrows.length - 1];
+    return [{
+      from: lastEvent.originCoordinates!,
+      to: lastEvent.destinationCoordinates!,
+      color: lastEvent.outcome === 'successful' ? '#4caf50' :
+        lastEvent.outcome === 'unsuccessful' ? '#f44336' : '#ffc107',
+      label: lastEvent.eventType
+    }];
   });
 
   constructor(

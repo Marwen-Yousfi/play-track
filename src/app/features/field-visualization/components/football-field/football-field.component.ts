@@ -45,6 +45,19 @@ export interface EventArrow {
       border-radius: 6px;
     }
 
+    .team-formation-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .team-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      white-space: nowrap;
+    }
+
     .mode-btn {
       padding: 8px 16px;
       border: none;
@@ -108,23 +121,83 @@ export interface EventArrow {
       transform: scale(0.95);
     }
 
+    .overlay-toggles {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .overlay-btn {
+      padding: 6px 12px;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .overlay-btn:hover {
+      background: #f5f5f5;
+      border-color: #2196f3;
+    }
+
+    .overlay-btn.active {
+      background: #2196f3;
+      color: white;
+      border-color: #2196f3;
+    }
+
+    .zoom-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .zoom-btn {
+      padding: 6px 12px;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .zoom-btn:hover {
+      background: #f5f5f5;
+      border-color: #2196f3;
+    }
+
+    .zoom-level {
+      font-size: 13px;
+      font-weight: 600;
+      color: #666;
+      min-width: 45px;
+      text-align: center;
+    }
+
+    .formation-tools-spacer {
+      min-height: 40px; /* Same height as formation tools */
+    }
+
     .field-container {
       position: relative;
       width: 100%;
       max-width: 100%;
       margin: 0 auto;
-      /* Ensure consistent sizing across all modes */
-      min-height: 400px;
+      /* Fixed height for consistent sizing across all modes */
+      height: 600px;
     }
 
     .football-field {
       width: 100%;
-      height: auto;
+      height: 100%;
       display: block;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       /* Maintain aspect ratio */
-      aspect-ratio: 1050 / 680;
+      object-fit: contain;
     }
 
     .football-field.interactive {
@@ -255,6 +328,64 @@ export interface EventArrow {
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
+
+    .context-menu {
+      position: absolute;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      min-width: 200px;
+      z-index: 1000;
+      overflow: hidden;
+    }
+
+    .context-menu-header {
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .player-number-badge {
+      background: rgba(255,255,255,0.3);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .context-menu-item {
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-size: 13px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .context-menu-item:last-child {
+      border-bottom: none;
+    }
+
+    .context-menu-item:hover {
+      background: #f5f5f5;
+    }
+
+    .coordinates-display {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: monospace;
+    }
   `]
 })
 export class FootballFieldComponent {
@@ -266,6 +397,7 @@ export class FootballFieldComponent {
   showCoordinates = input<boolean>(true);
   selectedPlayer = input<Player | null>(null);
   originPosition = input<FieldCoordinates | null>(null); // Temporary marker for dual-position recording
+  destinationPosition = input<FieldCoordinates | null>(null); // Temporary marker for destination
   arrows = input<EventArrow[]>([]); // Event arrows to display
 
   // Outputs
@@ -283,13 +415,42 @@ export class FootballFieldComponent {
   availableFormations = getFormationList();
   selectedFormation = signal<string | null>(null);
 
+  // Overlay toggles
+  showThirds = signal<boolean>(false);
+  showChannels = signal<boolean>(false);
+  showGrid = signal<boolean>(false);
+  gridLines = [1, 2, 3, 4, 5, 6, 7, 8, 9]; // For grid overlay
+
   // Tooltip state
   hoveredPlayer = signal<Player | null>(null);
   tooltipPosition = signal<{ x: number; y: number } | null>(null);
 
+  // Drag trail state
+  dragStartPosition = signal<FieldCoordinates | null>(null);
+  dragCurrentPosition = signal<FieldCoordinates | null>(null);
+
+  // Zoom & Pan state
+  zoomScale = signal<number>(1);
+  panX = signal<number>(0);
+  panY = signal<number>(0);
+  isPanning = signal<boolean>(false);
+  panStartX = 0;
+  panStartY = 0;
+
   // Drag state
   isDragging = signal<boolean>(false);
   draggedPlayerId = signal<string | null>(null);
+
+  // Multi-select state
+  selectedPlayerIds = signal<Set<string>>(new Set());
+  isSelecting = signal<boolean>(false);
+  selectionStart = signal<{ x: number; y: number } | null>(null);
+  selectionEnd = signal<{ x: number; y: number } | null>(null);
+
+  // Context menu state
+  showContextMenu = signal<boolean>(false);
+  contextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+  contextMenuPlayer = signal<Player | null>(null);
 
   // Constants
   readonly playerRadius = 15;
@@ -367,11 +528,13 @@ export class FootballFieldComponent {
     const clampedY = Math.max(0, Math.min(100, y));
 
     const coordinates: FieldCoordinates = { x: clampedX, y: clampedY };
-    this.lastClickPosition.set(coordinates);
-    this.fieldClick.emit(coordinates);
 
-    // Clear indicator after animation
-    setTimeout(() => this.lastClickPosition.set(null), 500);
+    // Only show click indicator if we have origin/destination inputs (event recording mode)
+    if (this.originPosition() !== null || this.destinationPosition() !== null) {
+      this.lastClickPosition.set(coordinates);
+    }
+
+    this.fieldClick.emit(coordinates);
   }
 
   onPlayerMouseEnter(event: MouseEvent, player: Player): void {
@@ -399,6 +562,24 @@ export class FootballFieldComponent {
     });
   }
 
+  /**
+   * Handle mouse down on field background to start selection box
+   */
+  onFieldMouseDown(event: MouseEvent): void {
+    // Only start selection if clicking on field background (not players)
+    const target = event.target as SVGElement;
+    if (target.classList.contains('field-bg')) {
+      const rect = this.fieldElement.nativeElement.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
+      this.isSelecting.set(true);
+      this.selectionStart.set({ x, y });
+      this.selectionEnd.set({ x, y });
+      event.preventDefault();
+    }
+  }
+
   onPlayerMouseDown(event: MouseEvent, player: Player): void {
     if (!this.interactive()) return;
 
@@ -423,6 +604,15 @@ export class FootballFieldComponent {
   }
 
   onFieldMouseMove(event: MouseEvent): void {
+    // Update selection box if selecting
+    if (this.isSelecting() && this.selectionStart()) {
+      const rect = this.fieldElement.nativeElement.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      this.selectionEnd.set({ x, y });
+      return;
+    }
+
     if (this.isDragging() && this.draggedPlayerId()) {
 
       event.preventDefault();
@@ -442,6 +632,15 @@ export class FootballFieldComponent {
   }
 
   onFieldMouseUp(): void {
+    // Complete selection box
+    if (this.isSelecting() && this.selectionStart() && this.selectionEnd()) {
+      this.completeSelection();
+      this.isSelecting.set(false);
+      this.selectionStart.set(null);
+      this.selectionEnd.set(null);
+      return;
+    }
+
     if (this.isDragging()) {
       this.isDragging.set(false);
       this.draggedPlayerId.set(null);
@@ -599,6 +798,59 @@ export class FootballFieldComponent {
   }
 
   /**
+   * Apply formation to specific team
+   */
+  applyFormationToTeam(formationName: string, team: 'home' | 'away'): void {
+    if (!formationName) return;
+
+    const formation = FORMATIONS[formationName];
+    if (!formation) return;
+
+    const currentMatch = this.eventService.currentMatch();
+    if (!currentMatch) return;
+
+    const targetTeam = team === 'home' ? currentMatch.homeTeam : currentMatch.awayTeam;
+
+    // Get players by position category
+    const gk = targetTeam.players.find(p => p.position === 'GK');
+    const defenders = targetTeam.players.filter(p => ['CB', 'LB', 'RB'].includes(p.position));
+    const midfielders = targetTeam.players.filter(p => ['CDM', 'CM', 'CAM', 'LW', 'RW'].includes(p.position));
+    const forwards = targetTeam.players.filter(p => p.position === 'ST');
+
+    // Helper function to mirror position for away team
+    const getPosition = (pos: { x: number; y: number }) => {
+      if (team === 'away') {
+        // Mirror X coordinate for away team (opposite side)
+        return { x: 100 - pos.x, y: pos.y };
+      }
+      return pos;
+    };
+
+    // Apply formation positions
+    if (gk) {
+      this.eventService.updatePlayerPosition(gk.id, getPosition(formation.positions.GK));
+    }
+
+    defenders.forEach((player, index) => {
+      if (index < formation.positions.DEF.length) {
+        this.eventService.updatePlayerPosition(player.id, getPosition(formation.positions.DEF[index]));
+      }
+    });
+
+    midfielders.forEach((player, index) => {
+      if (index < formation.positions.MID.length) {
+        this.eventService.updatePlayerPosition(player.id, getPosition(formation.positions.MID[index]));
+      }
+    });
+
+    forwards.forEach((player, index) => {
+      if (index < formation.positions.FWD.length) {
+        this.eventService.updatePlayerPosition(player.id, getPosition(formation.positions.FWD[index]));
+      }
+    });
+  }
+
+  /**
    * Apply formation to players
    */
   applyFormation(formationName: string): void {
@@ -643,21 +895,41 @@ export class FootballFieldComponent {
   }
 
   /**
-   * Mirror formation (flip horizontally)
+   * Save current player positions as custom formation
    */
-  mirrorFormation(): void {
+  saveCustomFormation(): void {
     const currentMatch = this.eventService.currentMatch();
     if (!currentMatch) return;
 
-    const allPlayers = [...currentMatch.homeTeam.players, ...currentMatch.awayTeam.players];
+    const formationName = prompt('Enter a name for this custom formation:');
+    if (!formationName || formationName.trim() === '') return;
 
-    allPlayers.forEach(player => {
-      const newY = 100 - player.fieldPosition.y; // Flip Y coordinate
-      this.eventService.updatePlayerPosition(player.id, {
-        x: player.fieldPosition.x,
-        y: newY
-      });
-    });
+    const homeTeam = currentMatch.homeTeam;
+
+    // Get players by position category
+    const gk = homeTeam.players.find(p => p.position === 'GK');
+    const defenders = homeTeam.players.filter(p => ['CB', 'LB', 'RB'].includes(p.position));
+    const midfielders = homeTeam.players.filter(p => ['CDM', 'CM', 'CAM', 'LW', 'RW'].includes(p.position));
+    const forwards = homeTeam.players.filter(p => p.position === 'ST');
+
+    // Create formation object
+    const customFormation = {
+      name: formationName.trim(),
+      description: 'Custom formation',
+      positions: {
+        GK: gk ? { ...gk.fieldPosition } : { x: 10, y: 50 },
+        DEF: defenders.map(p => ({ ...p.fieldPosition })),
+        MID: midfielders.map(p => ({ ...p.fieldPosition })),
+        FWD: forwards.map(p => ({ ...p.fieldPosition }))
+      }
+    };
+
+    // Add to available formations
+    FORMATIONS[formationName.trim()] = customFormation;
+    this.availableFormations = getFormationList();
+    this.selectedFormation.set(formationName.trim());
+
+    alert(`Custom formation "${formationName}" saved successfully!`);
   }
 
   /**
@@ -674,6 +946,161 @@ export class FootballFieldComponent {
       const newY = 100 - player.fieldPosition.y; // Flip Y
       this.eventService.updatePlayerPosition(player.id, { x: newX, y: newY });
     });
+  }
+
+  /**
+   * Toggle overlay visibility
+   */
+  toggleThirds(): void {
+    this.showThirds.update(v => !v);
+  }
+
+  toggleChannels(): void {
+    this.showChannels.update(v => !v);
+  }
+
+  toggleGrid(): void {
+    this.showGrid.update(v => !v);
+    console.log('Grid toggled:', this.showGrid());
+  }
+
+  /**
+   * Zoom & Pan controls
+   */
+  zoomIn(): void {
+    const newScale = Math.min(this.zoomScale() * 1.2, 3); // Max 3x zoom
+    this.zoomScale.set(newScale);
+  }
+
+  zoomOut(): void {
+    const newScale = Math.max(this.zoomScale() / 1.2, 0.5); // Min 0.5x zoom
+    this.zoomScale.set(newScale);
+  }
+
+  resetView(): void {
+    this.zoomScale.set(1);
+    this.panX.set(0);
+    this.panY.set(0);
+  }
+
+  onWheel(event: WheelEvent): void {
+    event.preventDefault();
+    const delta = event.deltaY > 0 ? 0.9 : 1.1;
+    const newScale = Math.max(0.5, Math.min(3, this.zoomScale() * delta));
+    this.zoomScale.set(newScale);
+  }
+
+  onSvgMouseDown(event: MouseEvent): void {
+    // Only pan if clicking on background (not on players)
+    if ((event.target as SVGElement).classList.contains('field-bg')) {
+      this.isPanning.set(true);
+      this.panStartX = event.clientX - this.panX();
+      this.panStartY = event.clientY - this.panY();
+      event.preventDefault();
+    }
+  }
+
+  getTransform(): string {
+    return `translate(${this.panX()}, ${this.panY()}) scale(${this.zoomScale()})`;
+  }
+
+  /**
+   * Multi-select functionality
+   */
+  completeSelection(): void {
+    const start = this.selectionStart();
+    const end = this.selectionEnd();
+    if (!start || !end) return;
+
+    const rect = this.fieldElement.nativeElement.getBoundingClientRect();
+    const minX = Math.min(start.x, end.x) / rect.width * 100;
+    const maxX = Math.max(start.x, end.x) / rect.width * 100;
+    const minY = Math.min(start.y, end.y) / rect.height * 100;
+    const maxY = Math.max(start.y, end.y) / rect.height * 100;
+
+    const currentMatch = this.eventService.currentMatch();
+    if (!currentMatch) return;
+
+    const allPlayers = [...currentMatch.homeTeam.players, ...currentMatch.awayTeam.players];
+    const selectedIds = new Set<string>();
+
+    allPlayers.forEach(player => {
+      const pos = player.fieldPosition;
+      if (pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY) {
+        selectedIds.add(player.id);
+      }
+    });
+
+    this.selectedPlayerIds.set(selectedIds);
+  }
+
+  clearSelection(): void {
+    this.selectedPlayerIds.set(new Set());
+  }
+
+  getSelectionBox(): { x: number; y: number; width: number; height: number } | null {
+    const start = this.selectionStart();
+    const end = this.selectionEnd();
+    if (!start || !end) return null;
+
+    return {
+      x: Math.min(start.x, end.x),
+      y: Math.min(start.y, end.y),
+      width: Math.abs(end.x - start.x),
+      height: Math.abs(end.y - start.y)
+    };
+  }
+
+  /**
+   * Player context menu
+   */
+  onPlayerContextMenu(event: MouseEvent, player: Player): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.contextMenuPlayer.set(player);
+    this.contextMenuPosition.set({ x: event.clientX, y: event.clientY });
+    this.showContextMenu.set(true);
+
+    // Close menu on next click anywhere
+    setTimeout(() => {
+      document.addEventListener('click', () => this.closeContextMenu(), { once: true });
+    }, 0);
+  }
+
+  closeContextMenu(): void {
+    this.showContextMenu.set(false);
+    this.contextMenuPlayer.set(null);
+  }
+
+  editPlayerDetails(): void {
+    console.log('Edit player:', this.contextMenuPlayer());
+    // Emit event to parent for editing
+    this.closeContextMenu();
+  }
+
+  swapPlayer(): void {
+    console.log('Swap player:', this.contextMenuPlayer());
+    // Emit event to parent for swapping
+    this.closeContextMenu();
+  }
+
+  removeFromField(): void {
+    console.log('Remove player:', this.contextMenuPlayer());
+    // Emit event to parent for removal
+    this.closeContextMenu();
+  }
+
+  viewPlayerStats(): void {
+    console.log('View stats for:', this.contextMenuPlayer());
+    // Emit event to parent to show stats
+    this.closeContextMenu();
+  }
+
+  recordPlayerAction(): void {
+    console.log('Record action for:', this.contextMenuPlayer());
+    // Emit event to parent to start recording
+    this.closeContextMenu();
   }
 }
 

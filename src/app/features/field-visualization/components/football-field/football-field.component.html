@@ -1,48 +1,109 @@
 <!-- Field Controls Toolbar -->
 <div class="field-controls">
-    <!-- Mode Switcher -->
-    <div class="mode-switcher">
-        <button class="mode-btn" [class.active]="fieldMode() === 'record'" (click)="setMode('record')"
-            title="Record events on field">
-            📍 Record
-        </button>
-        <button class="mode-btn" [class.active]="fieldMode() === 'formation'" (click)="setMode('formation')"
-            title="Arrange player formation">
-            👥 Formation
-        </button>
-        <button class="mode-btn" [class.active]="fieldMode() === 'analysis'" (click)="setMode('analysis')"
-            title="View analysis and stats">
-            📊 Analysis
-        </button>
-    </div>
-
-    <!-- Formation Tools (only visible in formation mode) -->
-    @if (fieldMode() === 'formation') {
-    <div class="formation-tools">
-        <select class="formation-select" (change)="applyFormation($any($event.target).value)"
-            [value]="selectedFormation() || ''">
-            <option value="">Select Formation</option>
+    <!-- Home Team Formation -->
+    <div class="team-formation-group">
+        <label class="team-label">🏠 Home</label>
+        <select class="formation-select" (change)="applyFormationToTeam($any($event.target).value, 'home')">
+            <option value="">Formation</option>
             @for (formation of availableFormations; track formation) {
             <option [value]="formation">{{ formation }}</option>
             }
         </select>
+    </div>
 
-        <button class="tool-btn" (click)="mirrorFormation()" title="Mirror formation horizontally">
-            ↔️ Mirror
+    <!-- Formation Tools -->
+    <div class="formation-tools">
+        <button class="tool-btn" (click)="saveCustomFormation()" title="Save positions">
+            💾 Save
         </button>
-        <button class="tool-btn" (click)="rotateFormation()" title="Rotate formation 180°">
+        <button class="tool-btn" (click)="rotateFormation()" title="Rotate 180°">
             🔄 Rotate
         </button>
     </div>
-    }
+
+    <!-- Overlay Toggles -->
+    <div class="overlay-toggles">
+        <button class="overlay-btn" [class.active]="showThirds()" (click)="toggleThirds()" title="Show thirds">
+            ⚡ Thirds
+        </button>
+        <button class="overlay-btn" [class.active]="showChannels()" (click)="toggleChannels()" title="Show channels">
+            📊 Channels
+        </button>
+        <button class="overlay-btn" [class.active]="showGrid()" (click)="toggleGrid()" title="Show grid">
+            🔲 Grid
+        </button>
+    </div>
+
+    <!-- Away Team Formation -->
+    <div class="team-formation-group">
+        <label class="team-label">✈️ Away</label>
+        <select class="formation-select" (change)="applyFormationToTeam($any($event.target).value, 'away')">
+            <option value="">Formation</option>
+            @for (formation of availableFormations; track formation) {
+            <option [value]="formation">{{ formation }}</option>
+            }
+        </select>
+    </div>
 </div>
 
 <div class="field-container" #fieldElement (click)="onFieldClick($event)" (mousemove)="onFieldMouseMove($event)"
     (mouseup)="onFieldMouseUp()" (mouseleave)="onFieldMouseLeave()">
-    <svg class="football-field" viewBox="0 0 1050 680" [class.interactive]="interactive()">
+    <svg class="football-field" viewBox="0 0 1050 680" [class.interactive]="interactive()"
+        (mousedown)="onFieldMouseDown($event)">
 
         <!-- Field background -->
         <rect class="field-bg" x="0" y="0" width="1050" height="680" />
+
+        <!-- Thirds Overlay -->
+        @if (showThirds()) {
+        <g class="thirds-overlay" opacity="0.3">
+            <!-- Defensive third -->
+            <rect x="10" y="10" width="343" height="660" fill="#f44336" />
+            <text x="180" y="350" text-anchor="middle" fill="white" font-size="20" font-weight="bold">Defensive</text>
+
+            <!-- Middle third -->
+            <rect x="353" y="10" width="344" height="660" fill="#ffc107" />
+            <text x="525" y="350" text-anchor="middle" fill="white" font-size="20" font-weight="bold">Middle</text>
+
+            <!-- Attacking third -->
+            <rect x="697" y="10" width="343" height="660" fill="#4caf50" />
+            <text x="870" y="350" text-anchor="middle" fill="white" font-size="20" font-weight="bold">Attacking</text>
+        </g>
+        }
+
+        <!-- Channels Overlay -->
+        @if (showChannels()) {
+        <g class="channels-overlay" opacity="0.2">
+            <!-- Left channel -->
+            <rect x="10" y="10" width="1030" height="220" fill="#2196f3" />
+            <text x="525" y="120" text-anchor="middle" fill="white" font-size="18" font-weight="bold">Left
+                Channel</text>
+
+            <!-- Center channel -->
+            <rect x="10" y="230" width="1030" height="220" fill="#9c27b0" />
+            <text x="525" y="340" text-anchor="middle" fill="white" font-size="18" font-weight="bold">Center
+                Channel</text>
+
+            <!-- Right channel -->
+            <rect x="10" y="450" width="1030" height="220" fill="#2196f3" />
+            <text x="525" y="560" text-anchor="middle" fill="white" font-size="18" font-weight="bold">Right
+                Channel</text>
+        </g>
+        }
+
+        <!-- Grid Overlay -->
+        @if (showGrid()) {
+        <g class="grid-overlay" opacity="0.4">
+            <!-- Vertical lines (every 10%) -->
+            @for (i of gridLines; track i) {
+            <line [attr.x1]="i * 105" y1="10" [attr.x2]="i * 105" y2="670" stroke="#999" stroke-width="2" />
+            }
+            <!-- Horizontal lines (every 10%) -->
+            @for (i of gridLines; track i) {
+            <line x1="10" [attr.y1]="10 + i * 66" x2="1040" [attr.y2]="10 + i * 66" stroke="#999" stroke-width="2" />
+            }
+        </g>
+        }
 
         <!-- Outer boundary -->
         <rect class="field-line" x="10" y="10" width="1030" height="660" fill="none" stroke="white" stroke-width="2" />
@@ -89,6 +150,19 @@
 
         <!-- Arrow marker definitions -->
         <defs>
+            <!-- Drop shadow filter for players -->
+            <filter id="player-shadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
+                <feOffset dx="2" dy="2" result="offsetblur" />
+                <feComponentTransfer>
+                    <feFuncA type="linear" slope="0.3" />
+                </feComponentTransfer>
+                <feMerge>
+                    <feMergeNode />
+                    <feMergeNode in="SourceGraphic" />
+                </feMerge>
+            </filter>
+
             <marker id="arrowhead-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
                 <polygon points="0 0, 10 3, 0 6" fill="#4caf50" />
             </marker>
@@ -115,18 +189,35 @@
         </circle>
         }
 
+        <!-- Destination position marker (temporary during recording) -->
+        @if (destinationPosition()) {
+        <circle [attr.cx]="destinationPosition()!.x * 10.3" [attr.cy]="destinationPosition()!.y * 6.7" r="10"
+            fill="#e91e63" opacity="0.8" stroke="white" stroke-width="2" class="destination-marker">
+            <animate attributeName="r" values="10;14;10" dur="1s" repeatCount="indefinite" />
+        </circle>
+        }
+
+        <!-- Temporary arrow during recording (from origin to destination) -->
+        @if (originPosition() && destinationPosition()) {
+        <line [attr.x1]="originPosition()!.x * 10.3" [attr.y1]="originPosition()!.y * 6.7"
+            [attr.x2]="destinationPosition()!.x * 10.3" [attr.y2]="destinationPosition()!.y * 6.7" stroke="#4caf50"
+            stroke-width="3" marker-end="url(#arrowhead-green)" opacity="0.7" class="temp-arrow" />
+        }
+
         <!-- Players -->
         @for (player of players(); track player.id) {
         <g class="player" [attr.transform]="getPlayerTransform(player)" (mousedown)="onPlayerMouseDown($event, player)"
             (mouseenter)="onPlayerMouseEnter($event, player)" (mouseleave)="onPlayerMouseLeave()"
             (mousemove)="onPlayerMouseMove($event)" (click)="onPlayerClick($event, player)"
-            [class.dragging]="draggedPlayerId() === player.id" style="pointer-events: all;">
+            (contextmenu)="onPlayerContextMenu($event, player)" [class.dragging]="draggedPlayerId() === player.id"
+            style="pointer-events: all;">
 
             <!-- Player circle -->
             <circle [attr.r]="playerRadius"
                 [attr.fill]="player.team === 'home' ? 'var(--home-team, #0d47a1)' : 'var(--away-team, #b71c1c)'"
                 [attr.stroke]="player.team === 'home' ? '#0d47a1' : '#b71c1c'" stroke-width="2" class="player-circle"
-                [class.selected]="selectedPlayer()?.id === player.id" style="pointer-events: all;" />
+                [class.selected]="selectedPlayer()?.id === player.id" filter="url(#player-shadow)"
+                style="pointer-events: all;" />
 
             <!-- Jersey number -->
             <text text-anchor="middle" dy="0.35em" fill="white" font-size="14" font-weight="bold" class="player-number"
@@ -138,12 +229,19 @@
 
         <!-- Click indicator -->
         @if (lastClickPosition()) {
-        <circle [attr.cx]="lastClickPosition()!.x * 10.3" [attr.cy]="lastClickPosition()!.y * 6.7" r="8" fill="yellow"
-            opacity="0.7" class="click-indicator">
-            <animate attributeName="r" from="8" to="20" dur="0.5s" repeatCount="1" />
-            <animate attributeName="opacity" from="0.7" to="0" dur="0.5s" repeatCount="1" />
+        <circle [attr.cx]="lastClickPosition()!.x * 10.3" [attr.cy]="lastClickPosition()!.y * 6.7" r="10" fill="#00bcd4" opacity="0.8" stroke="white" stroke-width="2" class="position-marker">
+            <animate attributeName="r" values="10;14;10" dur="1s" repeatCount="indefinite" />
+            
         </circle>
         }
+
+        <!-- Selection Box -->
+        @if (isSelecting() && getSelectionBox()) {
+        <rect [attr.x]="getSelectionBox()!.x" [attr.y]="getSelectionBox()!.y" [attr.width]="getSelectionBox()!.width"
+            [attr.height]="getSelectionBox()!.height" fill="rgba(33, 150, 243, 0.2)" stroke="#2196f3" stroke-width="2"
+            stroke-dasharray="5,5" class="selection-box" />
+        }
+
     </svg>
 
     @if (showCoordinates() && lastClickPosition()) {
@@ -167,3 +265,31 @@
     </div>
     }
 </div>
+    <!-- Player Context Menu -->
+    @if (showContextMenu() && contextMenuPlayer()) {
+    <div class="context-menu" 
+         [style.left.px]="contextMenuPosition().x" 
+         [style.top.px]="contextMenuPosition().y">
+        <div class="context-menu-header">
+            <span class="player-number-badge">{{ contextMenuPlayer()!.jerseyNumber }}</span>
+            {{ contextMenuPlayer()!.name }}
+        </div>
+        <div class="context-menu-item" (click)="editPlayerDetails()">
+             Edit Details
+        </div>
+        <div class="context-menu-item" (click)="swapPlayer()">
+             Swap with Another
+        </div>
+        <div class="context-menu-item" (click)="removeFromField()">
+             Remove from Field
+        </div>
+        <div class="context-menu-item" (click)="viewPlayerStats()">
+             View Stats
+        </div>
+        <div class="context-menu-item" (click)="recordPlayerAction()">
+             Record Action
+        </div>
+    </div>
+    }
+
+
