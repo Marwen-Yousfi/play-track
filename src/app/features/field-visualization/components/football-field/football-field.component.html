@@ -19,6 +19,9 @@
         <button class="tool-btn" (click)="rotateFormation()" title="Rotate 180°">
             🔄 Rotate
         </button>
+        <button class="tool-btn" (click)="setKickoffPositions()" title="Set kickoff positions">
+            ⚽ Kickoff
+        </button>
     </div>
 
     <!-- Overlay Toggles -->
@@ -31,6 +34,14 @@
         </button>
         <button class="overlay-btn" [class.active]="showGrid()" (click)="toggleGrid()" title="Show grid">
             🔲 Grid
+        </button>
+        <button class="overlay-btn" [class.active]="showCustomZones()" (click)="toggleCustomZones()"
+            title="Show custom zones">
+            🎯 Zones
+        </button>
+        <button class="overlay-btn" [class.active]="isDrawingZone()" (click)="toggleZoneDrawing()"
+            title="Draw custom zone">
+            ✏️ Draw
         </button>
     </div>
 
@@ -103,6 +114,33 @@
             <line x1="10" [attr.y1]="10 + i * 66" x2="1040" [attr.y2]="10 + i * 66" stroke="#999" stroke-width="2" />
             }
         </g>
+        }
+
+        <!-- Custom Tactical Zones -->
+        @if (showCustomZones()) {
+        <g class="custom-zones-overlay">
+            <!-- Saved zones -->
+            @for (zone of customZones(); track zone.id) {
+            <g class="tactical-zone">
+                <rect [attr.x]="zone.x * 10.3" [attr.y]="zone.y * 6.7" [attr.width]="zone.width * 10.3"
+                    [attr.height]="zone.height * 6.7" [attr.fill]="zone.color" fill-opacity="0.15"
+                    [attr.stroke]="zone.color" stroke-width="2" (click)="$event.stopPropagation()"
+                    (dblclick)="deleteZone(zone.id); $event.stopPropagation()" style="cursor: pointer" />
+                <text [attr.x]="zone.x * 10.3 + (zone.width * 10.3) / 2"
+                    [attr.y]="zone.y * 6.7 + (zone.height * 6.7) / 2" text-anchor="middle" dominant-baseline="middle"
+                    [attr.fill]="zone.color" font-size="14" font-weight="bold" pointer-events="none">{{ zone.label ||
+                    zone.name }}</text>
+            </g>
+            }
+        </g>
+        }
+
+        <!-- Zone drawing preview -->
+        @if (isDrawingZone() && getZoneDrawingRect()) {
+        <rect [attr.x]="getZoneDrawingRect()!.x * 10.3" [attr.y]="getZoneDrawingRect()!.y * 6.7"
+            [attr.width]="getZoneDrawingRect()!.width * 10.3" [attr.height]="getZoneDrawingRect()!.height * 6.7"
+            fill="#2196f3" fill-opacity="0.2" stroke="#2196f3" stroke-width="2" stroke-dasharray="5,5"
+            pointer-events="none" />
         }
 
         <!-- Outer boundary -->
@@ -229,9 +267,10 @@
 
         <!-- Click indicator -->
         @if (lastClickPosition()) {
-        <circle [attr.cx]="lastClickPosition()!.x * 10.3" [attr.cy]="lastClickPosition()!.y * 6.7" r="10" fill="#00bcd4" opacity="0.8" stroke="white" stroke-width="2" class="position-marker">
+        <circle [attr.cx]="lastClickPosition()!.x * 10.3" [attr.cy]="lastClickPosition()!.y * 6.7" r="10" fill="#00bcd4"
+            opacity="0.8" stroke="white" stroke-width="2" class="position-marker">
             <animate attributeName="r" values="10;14;10" dur="1s" repeatCount="indefinite" />
-            
+
         </circle>
         }
 
@@ -265,31 +304,27 @@
     </div>
     }
 </div>
-    <!-- Player Context Menu -->
-    @if (showContextMenu() && contextMenuPlayer()) {
-    <div class="context-menu" 
-         [style.left.px]="contextMenuPosition().x" 
-         [style.top.px]="contextMenuPosition().y">
-        <div class="context-menu-header">
-            <span class="player-number-badge">{{ contextMenuPlayer()!.jerseyNumber }}</span>
-            {{ contextMenuPlayer()!.name }}
-        </div>
-        <div class="context-menu-item" (click)="editPlayerDetails()">
-             Edit Details
-        </div>
-        <div class="context-menu-item" (click)="swapPlayer()">
-             Swap with Another
-        </div>
-        <div class="context-menu-item" (click)="removeFromField()">
-             Remove from Field
-        </div>
-        <div class="context-menu-item" (click)="viewPlayerStats()">
-             View Stats
-        </div>
-        <div class="context-menu-item" (click)="recordPlayerAction()">
-             Record Action
-        </div>
+<!-- Player Context Menu -->
+@if (showContextMenu() && contextMenuPlayer()) {
+<div class="context-menu" [style.left.px]="contextMenuPosition().x" [style.top.px]="contextMenuPosition().y">
+    <div class="context-menu-header">
+        <span class="player-number-badge">{{ contextMenuPlayer()!.jerseyNumber }}</span>
+        {{ contextMenuPlayer()!.name }}
     </div>
-    }
-
-
+    <div class="context-menu-item" (click)="editPlayerDetails()">
+        Edit Details
+    </div>
+    <div class="context-menu-item" (click)="swapPlayer()">
+        Swap with Another
+    </div>
+    <div class="context-menu-item" (click)="removeFromField()">
+        Remove from Field
+    </div>
+    <div class="context-menu-item" (click)="viewPlayerStats()">
+        View Stats
+    </div>
+    <div class="context-menu-item" (click)="recordPlayerAction()">
+        Record Action
+    </div>
+</div>
+}

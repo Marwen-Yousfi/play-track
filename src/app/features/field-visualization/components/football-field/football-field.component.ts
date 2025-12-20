@@ -1,12 +1,20 @@
-import { Component, Output, EventEmitter, input, signal, ElementRef, ViewChild, HostListener } from '@angular/core';
+import { Component, ElementRef, ViewChild, input, Output, EventEmitter, signal, computed, effect, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Player, FieldCoordinates } from '../../../../core/models/player.model';
 import { EventRecordingService } from '../../../../core/services/event-recording.service';
 import { FORMATIONS, getFormationList, FormationTemplate } from '../../utils/formations';
 
-/**
- * Arrow interface for displaying event trajectories
- */
+interface TacticalZone {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  label?: string;
+}
+
 export interface EventArrow {
   from: FieldCoordinates;
   to: FieldCoordinates;
@@ -145,6 +153,13 @@ export class FootballFieldComponent {
   showGrid = signal<boolean>(false);
   gridLines = [1, 2, 3, 4, 5, 6, 7, 8, 9]; // For grid overlay
 
+  // Custom tactical zones
+  showCustomZones = signal<boolean>(false);
+  isDrawingZone = signal<boolean>(false);
+  customZones = signal<TacticalZone[]>([]);
+  zoneDrawStart = signal<{ x: number; y: number } | null>(null);
+  zoneDrawEnd = signal<{ x: number; y: number } | null>(null);
+
   // Tooltip state
   hoveredPlayer = signal<Player | null>(null);
   tooltipPosition = signal<{ x: number; y: number } | null>(null);
@@ -164,6 +179,7 @@ export class FootballFieldComponent {
   // Drag state
   isDragging = signal<boolean>(false);
   draggedPlayerId = signal<string | null>(null);
+  dragOffset = signal<{ x: number; y: number } | null>(null); // Offset from player center to cursor
 
   // Multi-select state
   selectedPlayerIds = signal<Set<string>>(new Set());
@@ -253,7 +269,48 @@ export class FootballFieldComponent {
 
     const coordinates: FieldCoordinates = { x: clampedX, y: clampedY };
 
-    // Only show click indicator if we have origin/destination inputs (event recording mode)
+    console.log('Field clicked at:', coordinates, 'isDrawingZone:', this.isDrawingZone());
+
+    // Handle zone drawing mode
+    if (this.isDrawingZone()) {
+      console.log('In zone drawing mode, zoneDrawStart:', this.zoneDrawStart());
+      if (!this.zoneDrawStart()) {
+        // Start drawing
+        console.log('Starting zone draw at:', coordinates);
+        this.zoneDrawStart.set({ x: clampedX, y: clampedY });
+        this.zoneDrawEnd.set({ x: clampedX, y: clampedY });
+      } else {
+        // Finish drawing
+        console.log('Finishing zone draw at:', coordinates);
+        const start = this.zoneDrawStart()!;
+        const end = { x: clampedX, y: clampedY };
+        const zoneX = Math.min(start.x, end.x);
+        const zoneY = Math.min(start.y, end.y);
+        const width = Math.abs(end.x - start.x);
+        const height = Math.abs(end.y - start.y);
+
+        if (width > 5 && height > 5) {
+          const newZone: TacticalZone = {
+            id: `zone-${Date.now()}`,
+            name: `Zone ${this.customZones().length + 1}`,
+            x: zoneX,
+            y: zoneY,
+            width,
+            height,
+            color: this.getRandomZoneColor(),
+            label: `Z${this.customZones().length + 1}`
+          };
+          this.customZones.update(zones => [...zones, newZone]);
+          localStorage.setItem('tactical-zones', JSON.stringify(this.customZones()));
+        }
+
+        this.zoneDrawStart.set(null);
+        this.zoneDrawEnd.set(null);
+      }
+      return;
+    }
+
+    // Only show click indicator if we're in event recording mode (origin or destination position is active)
     if (this.originPosition() !== null || this.destinationPosition() !== null) {
       this.lastClickPosition.set(coordinates);
     }
@@ -312,28 +369,48 @@ export class FootballFieldComponent {
     this.tooltipPosition.set(null);
 
     // Save current position to history before drag starts
-    const currentMatch = this.eventService.currentMatch();
-    if (currentMatch) {
-      const allPlayers = [...currentMatch.homeTeam.players, ...currentMatch.awayTeam.players];
-      const currentPlayer = allPlayers.find(p => p.id === player.id);
-      if (currentPlayer) {
-        this.addToHistory(player.id, { ...currentPlayer.fieldPosition });
-      }
-    }
-
     event.stopPropagation();
-    event.preventDefault(); // Prevent text selection
+    event.preventDefault();
+
+    // Close context menu if open
+    this.closeContextMenu();
+
+    if (!this.interactive()) return;
+
     this.isDragging.set(true);
     this.draggedPlayerId.set(player.id);
+
+    // Calculate offset from player center to cursor position
+    const rect = this.fieldElement.nativeElement.getBoundingClientRect();
+    const cursorX = ((event.clientX - rect.left) / rect.width) * 100;
+    const cursorY = ((event.clientY - rect.top) / rect.height) * 100;
+
+    const offsetX = cursorX - player.fieldPosition.x;
+    const offsetY = cursorY - player.fieldPosition.y;
+
+    // Store the offset between cursor and player center
+    this.dragOffset.set({
+      x: offsetX,
+      y: offsetY
+    });
   }
 
   onFieldMouseMove(event: MouseEvent): void {
-    // Update selection box if selecting
+    // Handle selection box drawing
     if (this.isSelecting() && this.selectionStart()) {
       const rect = this.fieldElement.nativeElement.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
       this.selectionEnd.set({ x, y });
+      return;
+    }
+
+    // Handle zone drawing
+    if (this.isDrawingZone() && this.zoneDrawStart()) {
+      const rect = this.fieldElement.nativeElement.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * 100;
+      const y = ((event.clientY - rect.top) / rect.height) * 100;
+      this.zoneDrawEnd.set({ x, y });
       return;
     }
 
@@ -346,10 +423,10 @@ export class FootballFieldComponent {
       const x = ((event.clientX - rect.left) / rect.width) * 100;
       const y = ((event.clientY - rect.top) / rect.height) * 100;
 
-      // Clamp to 0-100
-      const clampedX = Math.max(0, Math.min(100, x));
-      const clampedY = Math.max(0, Math.min(100, y));
-
+      // Apply drag offset to get accurate player position
+      const offset = this.dragOffset();
+      const clampedX = Math.max(0, Math.min(100, offset ? x - offset.x : x));
+      const clampedY = Math.max(0, Math.min(100, offset ? y - offset.y : y));
 
       this.eventService.updatePlayerPosition(this.draggedPlayerId()!, { x: clampedX, y: clampedY });
     }
@@ -673,6 +750,76 @@ export class FootballFieldComponent {
   }
 
   /**
+   * Set kickoff positions - home team on left, away team on right
+   */
+  setKickoffPositions(): void {
+    const currentMatch = this.eventService.currentMatch();
+    if (!currentMatch) return;
+
+    // Home team positions (left side - attacking right)
+    const homePositions = [
+      { x: 15, y: 50 },  // GK
+      { x: 25, y: 20 },  // LB
+      { x: 25, y: 40 },  // CB
+      { x: 25, y: 60 },  // CB
+      { x: 25, y: 80 },  // RB
+      { x: 35, y: 30 },  // LM
+      { x: 35, y: 50 },  // CM
+      { x: 35, y: 70 },  // RM
+      { x: 45, y: 35 },  // LW
+      { x: 48, y: 50 },  // ST (at center circle)
+      { x: 45, y: 65 }   // RW
+    ];
+
+    // Away team positions (right side - attacking left)
+    const awayPositions = [
+      { x: 85, y: 50 },  // GK
+      { x: 75, y: 20 },  // LB
+      { x: 75, y: 40 },  // CB
+      { x: 75, y: 60 },  // CB
+      { x: 75, y: 80 },  // RB
+      { x: 65, y: 30 },  // LM
+      { x: 65, y: 50 },  // CM
+      { x: 65, y: 70 },  // RM
+      { x: 55, y: 35 },  // LW
+      { x: 52, y: 50 },  // ST (at center circle)
+      { x: 55, y: 65 }   // RW
+    ];
+
+    // Position home team
+    currentMatch.homeTeam.players.forEach((player: Player, index: number) => {
+      if (index < homePositions.length) {
+        this.eventService.updatePlayerPosition(player.id, homePositions[index]);
+      }
+    });
+
+    // Position away team
+    currentMatch.awayTeam.players.forEach((player: Player, index: number) => {
+      if (index < awayPositions.length) {
+        this.eventService.updatePlayerPosition(player.id, awayPositions[index]);
+      }
+    });
+  }
+
+  ngOnInit(): void {
+    // Load saved custom zones from localStorage
+    this.loadZonesFromLocalStorage();
+  }
+
+  loadZonesFromLocalStorage(): void {
+    const saved = localStorage.getItem('tactical-zones');
+    if (saved) {
+      try {
+        const zones = JSON.parse(saved);
+        this.customZones.set(zones);
+        console.log('Loaded zones from localStorage:', zones);
+      } catch (e) {
+        console.error('Failed to load zones:', e);
+      }
+    }
+  }
+
+  /**
    * Toggle overlay visibility
    */
   toggleThirds(): void {
@@ -825,6 +972,46 @@ export class FootballFieldComponent {
     console.log('Record action for:', this.contextMenuPlayer());
     // Emit event to parent to start recording
     this.closeContextMenu();
+  }
+
+  // ==================== Custom Tactical Zones ====================
+
+  toggleCustomZones(): void {
+    console.log('Toggle custom zones clicked, current state:', this.showCustomZones());
+    this.showCustomZones.update(v => !v);
+    console.log('New state:', this.showCustomZones());
+  }
+
+  toggleZoneDrawing(): void {
+    console.log('Toggle zone drawing clicked, current state:', this.isDrawingZone());
+    this.isDrawingZone.update(v => !v);
+    console.log('New state:', this.isDrawingZone());
+    if (!this.isDrawingZone()) {
+      this.zoneDrawStart.set(null);
+      this.zoneDrawEnd.set(null);
+    }
+  }
+
+  deleteZone(zoneId: string): void {
+    this.customZones.update(zones => zones.filter(z => z.id !== zoneId));
+    localStorage.setItem('tactical-zones', JSON.stringify(this.customZones()));
+  }
+
+  getRandomZoneColor(): string {
+    const colors = ['#2196f3', '#4caf50', '#ff9800', '#9c27b0', '#f44336', '#00bcd4'];
+    return colors[Math.floor(Math.random() * colors.length)];
+  }
+
+  getZoneDrawingRect(): { x: number; y: number; width: number; height: number } | null {
+    if (!this.zoneDrawStart() || !this.zoneDrawEnd()) return null;
+    const start = this.zoneDrawStart()!;
+    const end = this.zoneDrawEnd()!;
+    return {
+      x: Math.min(start.x, end.x),
+      y: Math.min(start.y, end.y),
+      width: Math.abs(end.x - start.x),
+      height: Math.abs(end.y - start.y)
+    };
   }
 }
 
