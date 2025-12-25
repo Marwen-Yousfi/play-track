@@ -6,197 +6,27 @@ import { VideoSyncService } from '../../../../core/services/video-sync.service';
 import { LiveEvent, EventType, EventOutcome, MatchPeriod } from '../../../../core/models/event.model';
 import { Player, FieldCoordinates } from '../../../../core/models/player.model';
 import { calculateDistance, calculateDirection } from '../../../field-visualization/utils/field-calculations';
+import { ACTION_TYPES, SUB_ACTION_TYPES, SUB_EVENTS } from '../../../../core/mock-data/mocked-data-action-recorder';
+import { FindPipe } from '../../../../core/pipes/find.pipe';
 
-/**
- * Multi-step action recorder component
- */
 @Component({
   selector: 'app-action-recorder',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FindPipe],
   templateUrl: './action-recorder.component.html',
-  styles: [`
-    .action-recorder {
-      background: white;
-      border-radius: 8px;
-      padding: 20px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    .recorder-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      padding-bottom: 16px;
-      border-bottom: 2px solid var(--border-color);
-    }
-
-    .recorder-header h3 {
-      margin: 0;
-      font-size: 20px;
-      color: var(--text-primary);
-    }
-
-    .step-indicator {
-      background: var(--primary-color);
-      color: white;
-      padding: 6px 12px;
-      border-radius: 16px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-
-    .step-content {
-      min-height: 300px;
-      margin-bottom: 20px;
-    }
-
-    .step-content h4 {
-      margin-bottom: 16px;
-      color: var(--text-primary);
-    }
-
-    .action-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 12px;
-    }
-
-    .action-btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      padding: 16px;
-      border: 2px solid var(--border-color);
-      border-radius: 8px;
-      background: white;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .action-btn:hover {
-      border-color: var(--primary-color);
-      background: var(--bg-secondary);
-    }
-
-    .action-btn.selected {
-      border-color: var(--primary-color);
-      background: var(--primary-light);
-      color: white;
-    }
-
-    .action-icon {
-      font-size: 24px;
-    }
-
-    .action-label {
-      font-size: 13px;
-      font-weight: 500;
-    }
-
-    .team-selection {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .team-selection .btn {
-      flex: 1;
-    }
-
-    .player-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      max-height: 300px;
-      overflow-y: auto;
-    }
-
-    .player-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      background: white;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: left;
-    }
-
-    .player-item:hover {
-      border-color: var(--primary-color);
-      background: var(--bg-secondary);
-    }
-
-    .player-item.selected {
-      border-color: var(--primary-color);
-      background: var(--primary-light);
-      color: white;
-    }
-
-    .player-number {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      background: var(--bg-tertiary);
-      border-radius: 50%;
-      font-weight: 600;
-    }
-
-    .player-item.selected .player-number {
-      background: white;
-      color: var(--primary-color);
-    }
-
-    .player-name {
-      flex: 1;
-      font-weight: 500;
-    }
-
-    .player-position {
-      font-size: 12px;
-      opacity: 0.8;
-    }
-
-    .instruction-text {
-      color: var(--text-secondary);
-      margin-bottom: 12px;
-    }
-
-    .coordinates-info {
-      padding: 12px;
-      background: var(--success-color);
-      color: white;
-      border-radius: 6px;
-      font-weight: 500;
-    }
-
-    .recorder-footer {
-      display: flex;
-      gap: 12px;
-      padding-top: 16px;
-      border-top: 1px solid var(--border-color);
-    }
-
-    .spacer {
-      flex: 1;
-    }
-  `]
+  styleUrl: './action-recorder.component.scss'
 })
 export class ActionRecorderComponent {
   currentStep = signal<number>(1);
   selectedAction = signal<EventType | null>(null);
+  selectedSubAction = signal<string | null>(null);
+  selectedSubEvent = signal<string | null>(null);
   selectedTeam = signal<'home' | 'away'>('home');
   selectedPlayer = signal<string | null>(null);
   selectedCoordinates = signal<FieldCoordinates | null>(null);
 
-  // Dual-position fields
+  subActionDropdownOpen = signal(false);
+
   originCoordinates = signal<FieldCoordinates | null>(null);
   destinationCoordinates = signal<FieldCoordinates | null>(null);
   selectedReceiver = signal<string | null>(null);
@@ -204,26 +34,27 @@ export class ActionRecorderComponent {
   selectedOutcome: EventOutcome = 'successful';
   selectedPeriod: MatchPeriod = 'first_half';
 
-  // Action-specific fields
   shotOnTarget = false;
-  passType: 'short' | 'long' | 'through_ball' | 'cross' = 'short';
 
-  actionTypes = [
-    { type: 'pass' as EventType, label: 'Pass', icon: '⚡' },
-    { type: 'shot' as EventType, label: 'Shot', icon: '⚽' },
-    { type: 'goal' as EventType, label: 'Goal', icon: '🥅' },
-    { type: 'tackle' as EventType, label: 'Tackle', icon: '🦵' },
-    { type: 'interception' as EventType, label: 'Interception', icon: '✋' },
-    { type: 'cross' as EventType, label: 'Cross', icon: '↗️' },
-    { type: 'corner' as EventType, label: 'Corner', icon: '🚩' },
-    { type: 'foul' as EventType, label: 'Foul', icon: '⚠️' },
-    { type: 'save' as EventType, label: 'Save', icon: '🧤' },
-    { type: 'clearance' as EventType, label: 'Clearance', icon: '🦶' },
-    { type: 'dribble' as EventType, label: 'Dribble', icon: '🏃' },
-    { type: 'throw_in' as EventType, label: 'Throw In', icon: '🤾' }
-  ];
+  actionTypes = ACTION_TYPES;
 
-  // Computed: Check if selected action requires dual-position tracking
+  subActionTypes = computed(() => {
+    const action = this.selectedAction();
+    return action ? SUB_ACTION_TYPES[action] || [] : [];
+  });
+
+  subEvents = computed(() => {
+    const action = this.selectedAction();
+    return action ? SUB_EVENTS[action] || [] : [];
+  });
+
+  requiresPitchPosition = computed(() => {
+    const action = this.selectedAction();
+    if (!action) return true;
+    const found = this.actionTypes.find(a => a.type === action as string);
+    return found?.pitchPosition ?? true;
+  });
+
   requiresDualPosition = computed(() => {
     const action = this.selectedAction();
     if (!action) return false;
@@ -231,8 +62,14 @@ export class ActionRecorderComponent {
     return dualPositionActions.includes(action);
   });
 
-  // Computed: Total number of steps based on action type
-  totalSteps = computed(() => this.requiresDualPosition() ? 6 : 4);
+  totalSteps = computed(() => {
+    const action = this.selectedAction();
+    if (!action) return 3;
+    if (this.requiresDualPosition()) {
+      return (action === 'corner' || action === 'penalty') ? 4 : 5;
+    }
+    return this.requiresPitchPosition() ? 3 : 2;
+  });
 
   filteredPlayers = computed(() => {
     const match = this.eventService.currentMatch();
@@ -247,8 +84,22 @@ export class ActionRecorderComponent {
     private videoSync: VideoSyncService
   ) { }
 
+  toggleSubActionDropdown(): void {
+    this.subActionDropdownOpen.update(isOpen => !isOpen);
+  }
+
+  selectSubAction(subActionType: string): void {
+    this.selectedSubAction.set(subActionType);
+    this.subActionDropdownOpen.set(false);
+  }
+
   selectAction(action: EventType): void {
     this.selectedAction.set(action);
+    this.selectedSubAction.set(null);
+    this.selectedSubEvent.set(null);
+    if (this.currentStep() > this.totalSteps()) {
+      this.currentStep.set(this.totalSteps());
+    }
   }
 
   selectPlayer(playerId: string): void {
@@ -261,61 +112,73 @@ export class ActionRecorderComponent {
 
   skipReceiver(): void {
     this.selectedReceiver.set(null);
-    this.nextStep(); // Auto-advance to next step
+    this.nextStep();
   }
 
   setCoordinates(coords: FieldCoordinates): void {
     const step = this.currentStep();
 
     if (this.requiresDualPosition()) {
-      // For dual-position events
       if (step === 3) {
-        // Step 3: Set origin
         this.originCoordinates.set(coords);
-        this.selectedCoordinates.set(coords); // Keep for backward compatibility
+        this.selectedCoordinates.set(coords);
       } else if (step === 4 && this.selectedAction() !== 'pass') {
-        // Step 4: Set destination (for non-pass dual-position events)
         this.destinationCoordinates.set(coords);
       } else if (step === 5) {
-        // Step 5: Set destination (for passes with receiver)
         this.destinationCoordinates.set(coords);
       }
     } else {
-      // For single-position events
       this.selectedCoordinates.set(coords);
     }
   }
 
   canProceed(): boolean {
     switch (this.currentStep()) {
-      case 1: return this.selectedAction() !== null;
+      case 1:
+        if (!this.selectedAction()) return false;
+        if (this.subActionTypes().length > 0 && !this.selectedSubAction()) return false;
+        if (this.subEvents().length > 0 && !this.selectedSubEvent()) return false;
+        return true;
       case 2: return this.selectedPlayer() !== null;
       case 3:
         if (this.requiresDualPosition()) {
-          return this.originCoordinates() !== null;
+          if (this.requiresPitchPosition()) {
+            return this.originCoordinates() !== null;
+          } else {
+            if (this.selectedAction() === 'pass') return true; // receiver optional
+            return this.destinationCoordinates() !== null;
+          }
         } else {
           return this.selectedCoordinates() !== null;
         }
       case 4:
         if (this.requiresDualPosition()) {
-          if (this.selectedAction() === 'pass') {
-            // Receiver is optional, always can proceed
-            return true;
+          if (this.requiresPitchPosition()) {
+            if (this.selectedAction() === 'pass') return true;
+            return this.destinationCoordinates() !== null;
           } else {
             return this.destinationCoordinates() !== null;
           }
-        } else {
-          // Single-position events can always proceed from step 4 (outcome selection)
-          return true;
         }
+        return false;
       case 5:
-        // Step 5 is destination for passes with receiver
         return this.destinationCoordinates() !== null;
-      case 6:
-        // Final step, always can proceed
-        return true;
       default: return false;
     }
+  }
+
+  allRequiredFilled(): boolean {
+    if (!this.selectedAction()) return false;
+    if (this.subActionTypes().length > 0 && !this.selectedSubAction()) return false;
+    if (this.subEvents().length > 0 && !this.selectedSubEvent()) return false;
+    if (!this.selectedPlayer()) return false;
+    if (this.requiresDualPosition()) {
+      if (this.requiresPitchPosition() && !this.originCoordinates()) return false;
+      if (!this.destinationCoordinates()) return false;
+    } else {
+      if (!this.selectedCoordinates()) return false;
+    }
+    return true;
   }
 
   nextStep(): void {
@@ -339,30 +202,30 @@ export class ActionRecorderComponent {
     const timestamp = this.videoSync.getCurrentTimestamp();
     const minute = this.videoSync.getMatchMinute(timestamp);
 
-    // Base event data
     const eventData: Omit<LiveEvent, 'id' | 'createdAt' | 'updatedAt'> = {
       matchId: match.id,
       timestamp,
       eventType: this.selectedAction()!,
       team: this.selectedTeam(),
       playerId: this.selectedPlayer()!,
-      coordinates: this.selectedCoordinates() || this.originCoordinates()!,
+      coordinates: this.requiresPitchPosition() ? (this.selectedCoordinates() || this.originCoordinates()!) : (this.selectedCoordinates() || { x: 0, y: 0 }),
       outcome: this.selectedOutcome,
       period: this.selectedPeriod,
       minute,
       metadata: {
         shotOnTarget: this.shotOnTarget,
-        passType: this.passType
+        subAction: this.selectedSubAction(),
+        subActionData: this.selectedSubAction() ? (SUB_ACTION_TYPES[this.selectedAction()!]?.find(s => s.type === this.selectedSubAction()) ?? null) : null,
+        subEvent: this.selectedSubEvent(),
+        subEventData: this.selectedSubEvent() ? (SUB_EVENTS[this.selectedAction()!]?.find(se => se.type === this.selectedSubEvent()) ?? null) : null
       }
     };
 
-    // Add dual-position fields if applicable
     if (this.requiresDualPosition() && this.originCoordinates() && this.destinationCoordinates()) {
       eventData.originCoordinates = this.originCoordinates()!;
       eventData.destinationCoordinates = this.destinationCoordinates()!;
       eventData.receiverId = this.selectedReceiver() || undefined;
 
-      // Calculate distance and direction
       eventData.distance = calculateDistance(this.originCoordinates()!, this.destinationCoordinates()!);
       eventData.direction = calculateDirection(this.originCoordinates()!, this.destinationCoordinates()!);
     }
@@ -378,6 +241,8 @@ export class ActionRecorderComponent {
   private reset(): void {
     this.currentStep.set(1);
     this.selectedAction.set(null);
+    this.selectedSubAction.set(null);
+    this.selectedSubEvent.set(null);
     this.selectedPlayer.set(null);
     this.selectedCoordinates.set(null);
     this.originCoordinates.set(null);

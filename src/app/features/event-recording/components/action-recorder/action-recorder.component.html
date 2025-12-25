@@ -6,25 +6,67 @@
     </div>
   </div>
 
-  <!-- Step 1: Select Action Type -->
+  
   @if (currentStep() === 1) {
     <div class="step-content">
       <h4>1. Select Action Type</h4>
-      <div class="action-grid">
-        @for (action of actionTypes; track action.type) {
-          <button 
-            class="action-btn"
-            [class.selected]="selectedAction() === action.type"
-            (click)="selectAction(action.type)">
-            <span class="action-icon">{{ action.icon }}</span>
-            <span class="action-label">{{ action.label }}</span>
-          </button>
-        }
+      <div class="form-group">
+        <label for="action-select">Action</label>
+        <select id="action-select" class="form-control" [ngModel]="selectedAction()" (ngModelChange)="selectAction($event)">
+          <option [ngValue]="null" disabled>Select an action</option>
+          @for (action of actionTypes; track action.type) {
+            <option [ngValue]="action.type">{{ action.icon }} {{ action.label }}</option>
+          }
+        </select>
       </div>
+
+      @if (subActionTypes().length > 0) {
+        <div class="form-group">
+          <label for="sub-action-select">Sub-Action</label>
+          <div class="custom-dropdown">
+            <button class="dropdown-toggle" (click)="toggleSubActionDropdown()">
+              <span>{{ selectedSubAction() ? (subActionTypes() | find:selectedSubAction():'type')?.label : 'Select a sub-action' }}</span>
+              <span>v</span>
+            </button>
+            @if (subActionDropdownOpen()) {
+              <div class="dropdown-menu">
+                @for (subAction of subActionTypes(); track subAction.type) {
+                  <div
+                    class="dropdown-item"
+                    role="option"
+                    tabindex="0"
+                    [attr.aria-selected]="selectedSubAction() === subAction.type"
+                    (click)="selectSubAction(subAction.type)"
+                    (keydown.enter)="selectSubAction(subAction.type)"
+                  >
+                    <span>{{ subAction.label }}</span>
+                    <span class="tooltip-icon" aria-hidden="true">
+                      <i>i</i>
+                      <span class="tooltip">{{ subAction.description }}</span>
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      @if (subEvents().length > 0) {
+        <div class="form-group">
+          <label for="sub-event-select">Sub-Event</label>
+          <select id="sub-event-select" class="form-control" [ngModel]="selectedSubEvent()" (ngModelChange)="selectedSubEvent.set($event)">
+            <option [ngValue]="null" disabled>Select a sub-event</option>
+            @for (subEvent of subEvents(); track subEvent.type) {
+              <option [ngValue]="subEvent.type">{{ subEvent.label }}</option>
+            }
+          </select>
+        </div>
+      }
     </div>
   }
 
-  <!-- Step 2: Select Player -->
+  
   @if (currentStep() === 2) {
     <div class="step-content">
       <h4>2. Select Player</h4>
@@ -45,25 +87,22 @@
         </button>
       </div>
       
-      <div class="player-list">
-        @for (player of filteredPlayers(); track player.id) {
-          <button 
-            class="player-item"
-            [class.selected]="selectedPlayer() === player.id"
-            (click)="selectPlayer(player.id)">
-            <span class="player-number">{{ player.jerseyNumber }}</span>
-            <span class="player-name">{{ player.name }}</span>
-            <span class="player-position">{{ player.position }}</span>
-          </button>
-        }
+      <div class="form-group">
+        <label for="player-select">Player</label>
+        <select id="player-select" class="form-control" [ngModel]="selectedPlayer()" (ngModelChange)="selectPlayer($event)">
+          <option [ngValue]="null" disabled>Select a player</option>
+          @for (player of filteredPlayers(); track player.id) {
+            <option [ngValue]="player.id">{{ player.jerseyNumber }} - {{ player.name }}</option>
+          }
+        </select>
       </div>
     </div>
   }
 
-  <!-- Step 3: Origin Position (for dual-position) OR Single Position (for single-position) -->
+  
   @if (currentStep() === 3) {
     <div class="step-content">
-      @if (requiresDualPosition()) {
+      @if (requiresDualPosition() && requiresPitchPosition()) {
         <h4>3. Click Origin Position</h4>
         <p class="instruction-text">
           Click on the field where the {{ selectedAction() }} started
@@ -72,6 +111,27 @@
           <div class="coordinates-info">
             Origin position: ({{ originCoordinates()!.x.toFixed(1) }}, {{ originCoordinates()!.y.toFixed(1) }})
           </div>
+        }
+      } @else if (requiresDualPosition() && !requiresPitchPosition()) {
+        <h4>3. Receiver / Destination</h4>
+        <p class="instruction-text">
+          Select receiver or click destination for the {{ selectedAction() }}
+        </p>
+        @if (selectedAction() === 'pass') {
+          <div class="form-group">
+            <label for="receiver-select">Receiver</label>
+            <select id="receiver-select" class="form-control" [ngModel]="selectedReceiver()" (ngModelChange)="selectReceiver($event)">
+              <option [ngValue]="null">No Receiver / Skip</option>
+              @for (player of filteredPlayers(); track player.id) {
+                <option [ngValue]="player.id">{{ player.jerseyNumber }} - {{ player.name }}</option>
+              }
+            </select>
+          </div>
+        } @else {
+          <p class="instruction-text">Click on the field where the {{ selectedAction() }} ended</p>
+          @if (destinationCoordinates()) {
+            <div class="coordinates-info">Destination: ({{ destinationCoordinates()!.x.toFixed(1) }}, {{ destinationCoordinates()!.y.toFixed(1) }})</div>
+          }
         }
       } @else {
         <h4>3. Click on Field to Mark Position</h4>
@@ -87,8 +147,7 @@
     </div>
   }
 
-  <!-- Step 4: Receiver Selection (for passes only) OR Outcome (for single-position) -->
-  @if (currentStep() === 4) {
+  @if (currentStep() === 4 && requiresDualPosition()) {
     <div class="step-content">
       @if (requiresDualPosition() && selectedAction() === 'pass') {
         <h4>4. Select Receiver (Optional)</h4>
@@ -113,20 +172,16 @@
           </button>
         </div>
         
-        <div class="player-list">
-          @for (player of filteredPlayers(); track player.id) {
-            <button 
-              class="player-item"
-              [class.selected]="selectedReceiver() === player.id"
-              (click)="selectReceiver(player.id)">
-              <span class="player-number">{{ player.jerseyNumber }}</span>
-              <span class="player-name">{{ player.name }}</span>
-              <span class="player-position">{{ player.position }}</span>
-            </button>
-          }
+        <div class="form-group">
+          <label for="receiver-select">Receiver</label>
+          <select id="receiver-select" class="form-control" [ngModel]="selectedReceiver()" (ngModelChange)="selectReceiver($event)">
+            <option [ngValue]="null">No Receiver / Skip</option>
+            @for (player of filteredPlayers(); track player.id) {
+              <option [ngValue]="player.id">{{ player.jerseyNumber }} - {{ player.name }}</option>
+            }
+          </select>
         </div>
         
-        <button class="btn btn-outline" (click)="skipReceiver()">Skip - No Receiver</button>
       } @else if (requiresDualPosition()) {
         <h4>4. Click Destination Position</h4>
         <p class="instruction-text">
@@ -137,43 +192,12 @@
             Destination: ({{ destinationCoordinates()!.x.toFixed(1) }}, {{ destinationCoordinates()!.y.toFixed(1) }})
           </div>
         }
-      } @else {
-        <h4>4. Select Outcome & Details</h4>
-        
-        <div class="form-group">
-          <label class="form-label">Outcome</label>
-          <select class="form-control" [(ngModel)]="selectedOutcome">
-            <option value="successful">Successful</option>
-            <option value="unsuccessful">Unsuccessful</option>
-            <option value="neutral">Neutral</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Match Period</label>
-          <select class="form-control" [(ngModel)]="selectedPeriod">
-            <option value="first_half">First Half</option>
-            <option value="second_half">Second Half</option>
-            <option value="extra_time_first">Extra Time (1st)</option>
-            <option value="extra_time_second">Extra Time (2nd)</option>
-          </select>
-        </div>
-
-        <!-- Action-specific fields -->
-        @if (selectedAction() === 'shot' || selectedAction() === 'goal') {
-          <div class="form-group">
-            <label class="form-label">
-              <input type="checkbox" [(ngModel)]="shotOnTarget">
-              Shot on Target
-            </label>
-          </div>
-        }
       }
     </div>
   }
 
-  <!-- Step 5: Destination Position (for dual-position with receiver) -->
-  @if (currentStep() === 5 && requiresDualPosition()) {
+  
+  @if (currentStep() === 5 && requiresDualPosition() && selectedAction() !== 'corner' && selectedAction() !== 'penalty') {
     <div class="step-content">
       <h4>5. Click Destination Position</h4>
       <p class="instruction-text">
@@ -187,41 +211,7 @@
     </div>
   }
 
-  <!-- Step 6: Outcome & Details (for dual-position) -->
-  @if ((currentStep() === 6 && requiresDualPosition()) || (currentStep() === 4 && !requiresDualPosition())) {
-    <div class="step-content">
-      <h4>{{ requiresDualPosition() ? '6' : '4' }}. Select Outcome & Details</h4>
-      
-      <div class="form-group">
-        <label class="form-label">Outcome</label>
-        <select class="form-control" [(ngModel)]="selectedOutcome">
-          <option value="successful">Successful</option>
-          <option value="unsuccessful">Unsuccessful</option>
-          <option value="neutral">Neutral</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Match Period</label>
-        <select class="form-control" [(ngModel)]="selectedPeriod">
-          <option value="first_half">First Half</option>
-          <option value="second_half">Second Half</option>
-          <option value="extra_time_first">Extra Time (1st)</option>
-          <option value="extra_time_second">Extra Time (2nd)</option>
-        </select>
-      </div>
-
-      <!-- Action-specific fields -->
-      @if (selectedAction() === 'shot' || selectedAction() === 'goal') {
-        <div class="form-group">
-          <label class="form-label">
-            <input type="checkbox" [(ngModel)]="shotOnTarget">
-            Shot on Target
-          </label>
-        </div>
-      }
-    </div>
-  }
+  
 
   <!-- Navigation Buttons -->
   <div class="recorder-footer">
@@ -237,13 +227,15 @@
       <button 
         class="btn btn-primary" 
         [disabled]="!canProceed()"
+        [attr.aria-disabled]="!canProceed()"
         (click)="nextStep()">
         Next
       </button>
     } @else {
       <button 
         class="btn btn-success" 
-        [disabled]="!canProceed()"
+        [disabled]="!canProceed() || !allRequiredFilled()"
+        [attr.aria-disabled]="!canProceed() || !allRequiredFilled()"
         (click)="saveEvent()">
         Save Event
       </button>

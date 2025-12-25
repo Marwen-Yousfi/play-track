@@ -1,0 +1,181 @@
+/* Minimal styles for Action Recorder component */
+.action-recorder {
+  background: var(--bg-primary, #fff);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.recorder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.step-indicator {
+  background: var(--primary-color);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.step-content {
+  min-height: 200px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.team-selection {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.team-selection .btn {
+  flex: 1;
+}
+
+.coordinates-info {
+  padding: 12px;
+  background: var(--success-color);
+  color: white;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.recorder-footer {
+  display: flex;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.spacer { flex: 1; }
+
+/* Custom dropdown (sub-action) */
+.custom-dropdown { position: relative; }
+
+.dropdown-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dropdown-toggle:focus { outline: 2px solid var(--primary-color); outline-offset: -1px; }
+
+.dropdown-menu {
+  position: absolute;
+  width: 100%;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: var(--shadow-md);
+}
+
+.dropdown-item {
+  padding: 12px;
+  min-height: 40px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dropdown-item:hover,
+.dropdown-item:active,
+.dropdown-item:focus,
+.dropdown-item:focus-visible { background-color: var(--bg-tertiary); }
+
+.dropdown-item[aria-selected="true"] { background-color: var(--primary-light); color: white; }
+
+.tooltip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: var(--text-secondary);
+  color: white;
+  cursor: help;
+  margin-left: 8px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tooltip-icon i { font-style: italic; font-family: serif; font-size: 10px; line-height: 12px; color: white; }
+
+.tooltip-icon .tooltip {
+  visibility: hidden;
+  width: 200px;
+  background-color: #333;
+  color: #fff;
+  border-radius: 6px;
+  padding: 8px;
+  position: absolute;
+  z-index: 100;
+  top: 50%;
+  right: 100%;
+  transform: translateY(-50%);
+  margin-right: 10px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  font-size: 12px;
+}
+
+.tooltip-icon .tooltip::after { content: ""; position: absolute; top: 50%; left: 100%; margin-top: -5px; border-width: 5px; border-style: solid; border-color: transparent transparent transparent #333; }
+
+.tooltip-icon:hover .tooltip { visibility: visible; opacity: 1; }
+
+/* Make disabled buttons look visually disabled and non-interactive */
+.recorder-footer .btn[disabled],
+.recorder-footer .btn[aria-disabled="true"],
+.action-recorder .btn[disabled],
+.action-recorder .btn[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(15%);
+}
+
+/* Provide slightly different styling for primary/success when disabled */
+.recorder-footer .btn.btn-primary[disabled],
+.recorder-footer .btn.btn-success[disabled] {
+  background-color: var(--disabled-bg, #c7d2e0);
+  border-color: var(--border-color);
+  color: var(--disabled-text, #6b7280);
+}
+
